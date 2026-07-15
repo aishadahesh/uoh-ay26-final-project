@@ -1,0 +1,25 @@
+ref/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Environments
+.venv/
+.env
+
+# Secrets (never commit — see docs/tasks.md Appendix A)
+credentials.json
+token.json
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
