@@ -1,0 +1,95 @@
+"""Loader for the shared, signed match config: config/game.json.
+
+docs/tasks.md Sec. 3.1.2: all physical laws come from one pre-agreed file
+both sides load identically -- board dimensions, starting positions, the
+barrier set, and the scoring table -- as hard-coded values, never
+renegotiated mid-match. Cryptographically locking this file so neither side
+can silently diverge after Step-0 is Chapter 5/6's concern; this loader only
+parses and validates structure/minimums for now.
+
+Position arrays in the JSON are `[row, col]`, matching domain.board.Position's
+field order -- an implementation choice, not a rulebook mandate (docs/tasks.md
+Sec. 3.2.2 only requires both sides agree on origin corner and start index,
+not on array ordering).
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+
+from police_thief.domain.board import BoardConfig, Position
+from police_thief.domain.scoring import ScoringTable
+from police_thief.shared.config import ConfigError
+
+MIN_MAX_BARRIERS = 14
+MIN_GRID_SIZE = 7
+SUPPORTED_SCHEMA_VERSIONS = frozenset({"1.00"})
+
+
+class GameConfigError(ConfigError):
+    """Raised when the shared match config is missing, malformed, or below floor."""
+
+
+@dataclass(frozen=True)
+class MatchParameters:
+    """Everything Chapter 3's board/scoring logic needs for one match."""
+
+    board: BoardConfig
+    scoring: ScoringTable
+    thief_start: Position
+    cop_start: Position
+    max_moves: int
+    survival_threshold: int
+
+
+def load_match_parameters(path: Path) -> MatchParameters:
+    """Parse config/game.json into board, scoring, and start-position data."""
+    if not path.is_file():
+        raise GameConfigError(f"missing shared match config: {path}")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        schema_version = str(data["schema_version"])
+        if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+            raise GameConfigError(
+                f"unsupported schema_version {schema_version!r} at {path}; "
+                f"supported: {sorted(SUPPORTED_SCHEMA_VERSIONS)}"
+            )
+        board_section = data["board_and_agents"]
+        movement_section = data["movement_and_barriers"]
+        scoring_section = data["scoring"]
+
+        grid_size = int(board_section["grid_size"])
+        max_barriers = int(movement_section["max_barriers"])
+        if grid_size < MIN_GRID_SIZE:
+            raise GameConfigError(f"grid_size {grid_size} is below the mandatory floor {MIN_GRID_SIZE}")
+        if max_barriers < MIN_MAX_BARRIERS:
+            raise GameConfigError(f"max_barriers {max_barriers} is below the mandatory floor {MIN_MAX_BARRIERS}")
+
+        board = BoardConfig(
+            grid_size=grid_size,
+            axis_origin_corner=str(board_section["axis_origin_corner"]),
+            axis_start_index=int(board_section["axis_start_index"]),
+            max_barriers=max_barriers,
+        )
+        scoring = ScoringTable(
+            capture_cop=int(scoring_section["capture_cop"]),
+            capture_thief=int(scoring_section["capture_thief"]),
+            survival_cop=int(scoring_section["survival_cop"]),
+            survival_thief=int(scoring_section["survival_thief"]),
+            tie_score=int(scoring_section["tie_score"]),
+            technical_loss=int(scoring_section["technical_loss"]),
+        )
+        return MatchParameters(
+            board=board,
+            scoring=scoring,
+            thief_start=Position(*board_section["thief_start"]),
+            cop_start=Position(*board_section["cop_start"]),
+            max_moves=int(movement_section["max_moves"]),
+            survival_threshold=int(movement_section["survival_threshold"]),
+        )
+    except GameConfigError:
+        raise
+    except (KeyError, TypeError, ValueError) as exc:
+        raise GameConfigError(f"malformed shared config at {path}: {exc}") from exc
