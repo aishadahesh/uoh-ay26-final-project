@@ -22,5 +22,10 @@
     "survival_thief": 10,
     "tie_score": 2,
     "technical_loss": 0
+  },
+  "pheromones": {
+    "scent_center_intensity": 0.9,
+    "scent_decay_rate": 0.10,
+    "scent_field_size": 5
   }
 }

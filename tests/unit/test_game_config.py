@@ -33,6 +33,11 @@ VALID_CONFIG: dict = {
         "tie_score": 2,
         "technical_loss": 0,
     },
+    "pheromones": {
+        "scent_center_intensity": 0.9,
+        "scent_decay_rate": 0.10,
+        "scent_field_size": 5,
+    },
 }
 
 
@@ -56,6 +61,25 @@ def test_load_match_parameters_parses_a_valid_config(tmp_path):
     assert params.scoring.capture_cop == 20
     assert params.max_moves == 35
     assert params.survival_threshold == 35
+    assert params.scent.center_intensity == 0.9
+    assert params.scent.decay_rate == 0.10
+    assert params.scent.field_size == 5
+
+
+@pytest.mark.parametrize(
+    ("field", "bad_value"),
+    [
+        ("scent_center_intensity", 0.5),
+        ("scent_decay_rate", 0.20),
+        ("scent_field_size", 7),
+    ],
+)
+def test_load_match_parameters_rejects_non_fixed_scent_values(tmp_path, field, bad_value):
+    """Sec. 4.2: scent params are FIXED, not minimums -- any deviation is rejected."""
+    data = json.loads(json.dumps(VALID_CONFIG))
+    data["pheromones"][field] = bad_value
+    with pytest.raises(GameConfigError, match="must be exactly"):
+        load_match_parameters(_write(tmp_path, data))
 
 
 def test_load_match_parameters_raises_on_missing_file(tmp_path):

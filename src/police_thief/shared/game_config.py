@@ -16,16 +16,19 @@ not on array ordering).
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
 from police_thief.domain.board import BoardConfig, Position
+from police_thief.domain.scent import ScentConfig
 from police_thief.domain.scoring import ScoringTable
 from police_thief.shared.config import ConfigError
 
 MIN_MAX_BARRIERS = 14
 MIN_GRID_SIZE = 7
 SUPPORTED_SCHEMA_VERSIONS = frozenset({"1.00"})
+_FIXED_SCENT_CONFIG = ScentConfig()  # docs/tasks.md Sec. 4.2: fixed, not a minimum floor
 
 
 class GameConfigError(ConfigError):
@@ -38,10 +41,24 @@ class MatchParameters:
 
     board: BoardConfig
     scoring: ScoringTable
+    scent: ScentConfig
     thief_start: Position
     cop_start: Position
     max_moves: int
     survival_threshold: int
+
+
+def _validate_fixed_scent_config(scent: ScentConfig, path: Path) -> None:
+    """Sec. 4.2: scent parameters are FIXED, not team-negotiable minimums."""
+    fixed = _FIXED_SCENT_CONFIG
+    if not math.isclose(scent.center_intensity, fixed.center_intensity):
+        raise GameConfigError(
+            f"scent_center_intensity must be exactly {fixed.center_intensity} at {path}"
+        )
+    if not math.isclose(scent.decay_rate, fixed.decay_rate):
+        raise GameConfigError(f"scent_decay_rate must be exactly {fixed.decay_rate} at {path}")
+    if scent.field_size != fixed.field_size:
+        raise GameConfigError(f"scent_field_size must be exactly {fixed.field_size} at {path}")
 
 
 def load_match_parameters(path: Path) -> MatchParameters:
@@ -59,6 +76,7 @@ def load_match_parameters(path: Path) -> MatchParameters:
         board_section = data["board_and_agents"]
         movement_section = data["movement_and_barriers"]
         scoring_section = data["scoring"]
+        pheromones_section = data["pheromones"]
 
         grid_size = int(board_section["grid_size"])
         max_barriers = int(movement_section["max_barriers"])
@@ -81,9 +99,16 @@ def load_match_parameters(path: Path) -> MatchParameters:
             tie_score=int(scoring_section["tie_score"]),
             technical_loss=int(scoring_section["technical_loss"]),
         )
+        scent = ScentConfig(
+            center_intensity=float(pheromones_section["scent_center_intensity"]),
+            decay_rate=float(pheromones_section["scent_decay_rate"]),
+            field_size=int(pheromones_section["scent_field_size"]),
+        )
+        _validate_fixed_scent_config(scent, path)
         return MatchParameters(
             board=board,
             scoring=scoring,
+            scent=scent,
             thief_start=Position(*board_section["thief_start"]),
             cop_start=Position(*board_section["cop_start"]),
             max_moves=int(movement_section["max_moves"]),
