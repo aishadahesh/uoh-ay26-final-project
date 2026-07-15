@@ -121,96 +121,96 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [x] T0897 Run `uv sync`, `pytest --cov` (100% coverage on new code), and `ruff check` (zero violations) as the Chapter-1 quality gate
 
 ### C.1 Board & Coordinate System
-- [ ] T0091 Define `BoardConfig` data structure (grid_size, axis_origin_corner, axis_start_index)
-- [ ] T0092 Implement default `grid_size = 7` per Mandatory Parameters Table
-- [ ] T0093 Implement coordinate system with configurable origin corner (default top-left = (0,0))
-- [ ] T0094 Implement configurable axis start index (default 0)
-- [ ] T0095 Write unit test: coordinate (0,0) resolves to the configured corner
-- [ ] T0096 Write unit test: grid boundaries reject out-of-range coordinates
-- [ ] T0097 Implement `Cell` / `Position` value type (immutable, hashable)
-- [ ] T0098 Implement equality/hash for `Position` for use in sets/dicts (barrier lookups, visited cells)
-- [ ] T0099 Implement `Board` class holding grid_size + set of blocked cells
-- [ ] T0100 Implement method `Board.is_within_bounds(pos)`
-- [ ] T0101 Implement method `Board.is_blocked(pos)`
-- [ ] T0102 Implement method `Board.neighbors(pos)` returning the 4 orthogonal neighbors only
-- [ ] T0103 Write unit test: `neighbors()` never returns diagonal cells
-- [ ] T0104 Write unit test: `neighbors()` excludes out-of-bounds cells
-- [ ] T0105 Write unit test: `neighbors()` excludes blocked cells (or flags them, depending on API design)
+- [x] T0091 Define `BoardConfig` data structure (grid_size, axis_origin_corner, axis_start_index) — `domain/board.py`
+- [x] T0092 Implement default `grid_size = 7` per Mandatory Parameters Table
+- [x] T0093 Implement coordinate system with configurable origin corner (default top-left = (0,0))
+- [x] T0094 Implement configurable axis start index (default 0)
+- [x] T0095 Write unit test: coordinate (0,0) resolves to the configured corner — `test_is_within_bounds_true_for_origin_and_far_corner`
+- [x] T0096 Write unit test: grid boundaries reject out-of-range coordinates — `test_is_within_bounds_false_outside_grid`
+- [x] T0097 Implement `Cell` / `Position` value type (immutable, hashable) — frozen dataclass
+- [x] T0098 Implement equality/hash for `Position` for use in sets/dicts (barrier lookups, visited cells) — free via `@dataclass(frozen=True)`
+- [x] T0099 Implement `Board` class holding grid_size + set of blocked cells
+- [x] T0100 Implement method `Board.is_within_bounds(pos)`
+- [x] T0101 Implement method `Board.is_blocked(pos)`
+- [x] T0102 Implement method `Board.neighbors(pos)` returning the 4 orthogonal neighbors only
+- [x] T0103 Write unit test: `neighbors()` never returns diagonal cells
+- [x] T0104 Write unit test: `neighbors()` excludes out-of-bounds cells
+- [x] T0105 Write unit test: `neighbors()` excludes blocked cells (or flags them, depending on API design) — design choice made: `neighbors()` is barrier-agnostic by design (bounds-only); blocked-cell filtering happens separately in `apply_move`/`is_boxed_in`, so both callers can distinguish "off-board" from "blocked" when they need to
 
 ### C.2 Movement Rules
-- [ ] T0106 Define `MoveSet` enum: N, S, E, W, STAY
-- [ ] T0107 Implement `apply_move(position, move) -> new_position`
-- [ ] T0108 Write unit test: each of N/S/E/W moves exactly one cell in the correct direction
-- [ ] T0109 Write unit test: STAY returns the same position unchanged
-- [ ] T0110 Implement move legality check: reject moves that leave board bounds
-- [ ] T0111 Implement move legality check: reject moves into a blocked (barrier) cell
-- [ ] T0112 Implement move legality check: reject any move not in `MoveSet` (defensive check against diagonal/other input)
-- [ ] T0113 Write unit test: illegal out-of-bounds move raises/rejects rather than silently executing
-- [ ] T0114 Write unit test: illegal into-barrier move raises/rejects rather than silently executing
-- [ ] T0115 Decide and implement exact failure semantics for illegal moves (exception vs. rejection object vs. technical-loss flag)
-- [ ] T0116 Write unit test: a thief with zero legal moves (fully boxed in) is flagged as captured
+- [x] T0106 Define `MoveSet` enum: N, S, E, W, STAY — named `Move` (StrEnum)
+- [x] T0107 Implement `apply_move(position, move) -> new_position`
+- [x] T0108 Write unit test: each of N/S/E/W moves exactly one cell in the correct direction
+- [x] T0109 Write unit test: STAY returns the same position unchanged
+- [x] T0110 Implement move legality check: reject moves that leave board bounds
+- [x] T0111 Implement move legality check: reject moves into a blocked (barrier) cell
+- [x] T0112 Implement move legality check: reject any move not in `MoveSet` (defensive check against diagonal/other input)
+- [x] T0113 Write unit test: illegal out-of-bounds move raises/rejects rather than silently executing
+- [x] T0114 Write unit test: illegal into-barrier move raises/rejects rather than silently executing
+- [x] T0115 Decide and implement exact failure semantics for illegal moves (exception vs. rejection object vs. technical-loss flag) — chose exception (`MoveRejectedError`); caller (future Orchestrator, Ch.8) converts to technical-loss
+- [x] T0116 Write unit test: a thief with zero legal moves (fully boxed in) is flagged as captured — `test_is_boxed_in_true_when_all_neighbors_blocked` (board-level; see C.6 note on why this isn't yet exercised through a full simulated match)
 
 ### C.3 Barrier Placement (Cop-only mechanic)
-- [ ] T0117 Define `BarrierBudget` tracking remaining barriers vs. `max_barriers` (default 14)
-- [ ] T0118 Implement `place_barrier(cop_position, target_cell)` — only adjacent-or-own cell allowed
-- [ ] T0119 Write unit test: barrier placement on a cell not adjacent to cop is rejected
-- [ ] T0120 Write unit test: barrier placement decrements the remaining budget
-- [ ] T0121 Write unit test: barrier placement fails once budget is exhausted
-- [ ] T0122 Implement permanent/irreversible barrier semantics (no un-blocking once placed)
-- [ ] T0123 Write unit test: a previously-placed barrier remains blocked for the rest of the match
-- [ ] T0124 Implement rule: barrier placement is public/declared, never hidden (data-model level: barrier events always recorded in the log)
-- [ ] T0125 Write unit test: barrier event always includes exact location in whatever event/message structure is used
-- [ ] T0126 Design barrier data structure shared between both agents' board models (must match schema in `config/game.json`)
+- [x] T0117 Define `BarrierBudget` tracking remaining barriers vs. `max_barriers` (default 14) — no separate class; `Board.remaining_barrier_budget` property, since the budget is intrinsically board state (see `docs/PRD_board_physics.md` §3)
+- [x] T0118 Implement `place_barrier(cop_position, target_cell)` — only adjacent-or-own cell allowed
+- [x] T0119 Write unit test: barrier placement on a cell not adjacent to cop is rejected
+- [x] T0120 Write unit test: barrier placement decrements the remaining budget
+- [x] T0121 Write unit test: barrier placement fails once budget is exhausted
+- [x] T0122 Implement permanent/irreversible barrier semantics (no un-blocking once placed) — no unblock method exists in the API at all
+- [x] T0123 Write unit test: a previously-placed barrier remains blocked for the rest of the match
+- [ ] T0124 Implement rule: barrier placement is public/declared, never hidden (data-model level: barrier events always recorded in the log) — deferred: there is no match log yet (Chapter 5/9); structurally, `place_barrier` has no "hidden" mode, but an explicit declaration *event* on a log is only meaningful once a log exists
+- [ ] T0125 Write unit test: barrier event always includes exact location in whatever event/message structure is used — deferred alongside T0124
+- [x] T0126 Design barrier data structure shared between both agents' board models (must match schema in `config/game.json`) — both roles load the identical `config/game.json`; `Board` is constructed from the same `BoardConfig` either way
 
 ### C.4 Capture & Win/Loss Detection
-- [ ] T0127 Implement `check_capture(cop_position, thief_position) -> bool`
-- [ ] T0128 Write unit test: cop landing on thief's cell triggers capture
-- [ ] T0129 Write unit test: cop placing a barrier exactly on the thief's current cell also triggers capture
-- [ ] T0130 Implement `CaptureClaim` event/message type (to be cryptographically signed later in Stage 6)
-- [ ] T0131 Implement thief "boxed in" detection (no legal moves at all → treated as captured)
-- [ ] T0132 Write unit test for thief-boxed-in edge cases (corner + surrounding barriers)
-- [ ] T0133 Implement survival counter tracking steps survived by the thief
-- [ ] T0134 Implement `survival_threshold` check (default 35) — thief "wins" once reached without capture
-- [ ] T0135 Implement `max_moves` cap (default 35) as a match-length safety limit
-- [ ] T0136 Write unit test: match ends at `max_moves` even with no capture (falls through to survival scoring)
-- [ ] T0137 Decide relationship/precedence between `max_moves` and `survival_threshold` if they differ, and document it
+- [x] T0127 Implement `check_capture(cop_position, thief_position) -> bool`
+- [x] T0128 Write unit test: cop landing on thief's cell triggers capture
+- [x] T0129 Write unit test: cop placing a barrier exactly on the thief's current cell also triggers capture — `test_barrier_placed_exactly_on_thiefs_cell_counts_as_capture`; `check_capture` is deliberately source-agnostic position-equality, so the same function covers both rules
+- [x] T0130 Implement `CaptureClaim` event/message type (to be cryptographically signed later in Stage 6)
+- [x] T0131 Implement thief "boxed in" detection (no legal moves at all → treated as captured)
+- [x] T0132 Write unit test for thief-boxed-in edge cases (corner + surrounding barriers)
+- [x] T0133 Implement survival counter tracking steps survived by the thief — the simulation loop's own `turn` counter; no separate persistent counter object needed
+- [x] T0134 Implement `survival_threshold` check (default 35) — thief "wins" once reached without capture
+- [x] T0135 Implement `max_moves` cap (default 35) as a match-length safety limit
+- [x] T0136 Write unit test: match ends at `max_moves` even with no capture (falls through to survival scoring)
+- [x] T0137 Decide relationship/precedence between `max_moves` and `survival_threshold` if they differ, and document it — decided: `max_moves` is the hard safety cap; documented in `run_local_match`'s docstring and covered by `test_max_moves_is_a_hard_cap_even_if_survival_threshold_is_higher`
 
 ### C.5 Scoring
-- [ ] T0138 Implement `ScoringTable` data structure matching Mandatory Parameters Table values
-- [ ] T0139 Implement scoring rule: capture → cop=20, thief=5 (defaults)
-- [ ] T0140 Implement scoring rule: survival → cop=5, thief=10 (defaults)
-- [ ] T0141 Implement scoring rule: technical loss → both sides 0
-- [ ] T0142 Implement scoring rule: tie across a series → both sides `[tie score]` (default 2)
-- [ ] T0143 Write unit test: capture scenario yields the correct cop/thief score pair
-- [ ] T0144 Write unit test: survival scenario yields the correct cop/thief score pair
-- [ ] T0145 Write unit test: technical-loss scenario yields 0/0
-- [ ] T0146 Ensure scoring values are loaded from config, never hardcoded as magic numbers in game logic
-- [ ] T0147 Write unit test: scoring values can be overridden upward via config without code changes
+- [x] T0138 Implement `ScoringTable` data structure matching Mandatory Parameters Table values
+- [x] T0139 Implement scoring rule: capture → cop=20, thief=5 (defaults)
+- [x] T0140 Implement scoring rule: survival → cop=5, thief=10 (defaults)
+- [x] T0141 Implement scoring rule: technical loss → both sides 0
+- [x] T0142 Implement scoring rule: tie across a series → both sides `[tie score]` (default 2)
+- [x] T0143 Write unit test: capture scenario yields the correct cop/thief score pair
+- [x] T0144 Write unit test: survival scenario yields the correct cop/thief score pair
+- [x] T0145 Write unit test: technical-loss scenario yields 0/0
+- [x] T0146 Ensure scoring values are loaded from config, never hardcoded as magic numbers in game logic
+- [x] T0147 Write unit test: scoring values can be overridden upward via config without code changes
 
 ### C.6 Single-Process Local Simulation Harness
-- [ ] T0148 Build a minimal local game loop that alternates cop/thief turns within one process (pre-networking)
-- [ ] T0149 Implement a placeholder "always move toward target" cop policy for local testing
-- [ ] T0150 Implement a placeholder "always move away from cop" thief policy for local testing
-- [ ] T0151 Run a full local match end-to-end with no crash (Stage-1 milestone criterion)
-- [ ] T0152 Verify scoring output is printed/logged correctly at match end
-- [ ] T0153 Add CLI entry point to run the local simulation (`--role police`/`--role thief` stub, single-process mode)
-- [ ] T0154 Write integration test: full local match completes and returns a valid score tuple
-- [ ] T0155 Write integration test: illegal-move attempt during local match is handled without crashing the loop
-- [ ] T0156 Write integration test: barrier-exhaustion scenario plays out correctly to match end
-- [ ] T0157 Write integration test: max_moves cap correctly ends a stalemate-style match
-- [ ] T0158 Profile the single-process loop for obvious performance issues (should be trivial at this scale)
-- [ ] T0159 Document Stage-1 architecture decisions in `PRD/01-base-logic.md`
-- [ ] T0160 Confirm Stage-1 milestone: two simulated agents legally move on the grid; barriers block movement; capture detection works (sign off before Stage 2)
+- [x] T0148 Build a minimal local game loop that alternates cop/thief turns within one process (pre-networking) — `domain/simulation.py::run_local_match`
+- [x] T0149 Implement a placeholder "always move toward target" cop policy for local testing — `move_toward_policy`
+- [x] T0150 Implement a placeholder "always move away from cop" thief policy for local testing — `move_away_policy`
+- [x] T0151 Run a full local match end-to-end with no crash (Stage-1 milestone criterion)
+- [x] T0152 Verify scoring output is printed/logged correctly at match end — `run_local_match` returns a structured `MatchResult` (not printed) by design (keeps the domain layer free of I/O); the CLI's new `simulate` subcommand prints it for manual verification
+- [x] T0153 Add CLI entry point to run the local simulation (`--role police`/`--role thief` stub, single-process mode) — `python -m police_thief simulate`; restructured `main.py` into `serve`/`simulate` subcommands (the existing `serve --role cop|thief` from Chapter 2 is unchanged in behavior, only in invocation syntax)
+- [x] T0154 Write integration test: full local match completes and returns a valid score tuple
+- [ ] T0155 Write integration test: illegal-move attempt during local match is handled without crashing the loop — not naturally reachable yet: the placeholder policies self-filter every candidate move through `apply_move` before returning, so an illegal move never reaches the loop itself in this trusted, single-process harness. Adversarial illegal-move handling from an untrusted opponent is already covered at the transport layer (Chapter 2) and will be fully covered by the commit-reveal protocol (Chapter 5/6)
+- [ ] T0156 Write integration test: barrier-exhaustion scenario plays out correctly to match end — deferred: no current policy places barriers during a simulated match (see C.3 T0117 note and `docs/PRD_board_physics.md` §3); barrier exhaustion itself is unit-tested at the `Board` level (`test_place_barrier_fails_once_budget_exhausted`)
+- [x] T0157 Write integration test: max_moves cap correctly ends a stalemate-style match
+- [x] T0158 Profile the single-process loop for obvious performance issues (should be trivial at this scale) — observed: negligible, full 85-test suite (incl. unrelated real-HTTP tests) runs in ~6-7s
+- [x] T0159 Document Stage-1 architecture decisions in `PRD/01-base-logic.md` — written as `docs/PRD_board_physics.md` instead, per the naming reconciliation in `docs/PRD.md` §7
+- [x] T0160 Confirm Stage-1 milestone: two simulated agents legally move on the grid; barriers block movement; capture detection works (sign off before Stage 2)
 
 ### C.7 Config Wiring for Board/Physics (early pass, refined later)
-- [ ] T0161 Draft the `board_and_agents` section of `config/game.json` schema (grid_size, num_agents, thief_start, cop_start, axis_origin_corner, axis_start_index)
-- [ ] T0162 Draft the `movement_and_barriers` section of `config/game.json` schema (move_set, max_barriers, max_moves, survival_threshold)
-- [ ] T0163 Draft the `scoring` section of `config/game.json` schema (capture_cop, capture_thief, survival_cop, survival_thief, tie_score, technical_loss)
-- [ ] T0164 Write a config loader that reads `config/game.json` and constructs `BoardConfig`/`ScoringTable`
-- [ ] T0165 Write unit test: config loader rejects a config missing required fields
-- [ ] T0166 Write unit test: config loader applies defaults correctly when values are absent (where allowed)
-- [ ] T0167 Write unit test: loader enforces minimum values are not violated (e.g., `max_barriers >= 14`)
-- [ ] T0168 Add schema versioning field (`schema_version`) to the config and validate it on load
+- [x] T0161 Draft the `board_and_agents` section of `config/game.json` schema (grid_size, num_agents, thief_start, cop_start, axis_origin_corner, axis_start_index)
+- [x] T0162 Draft the `movement_and_barriers` section of `config/game.json` schema (move_set, max_barriers, max_moves, survival_threshold)
+- [x] T0163 Draft the `scoring` section of `config/game.json` schema (capture_cop, capture_thief, survival_cop, survival_thief, tie_score, technical_loss)
+- [x] T0164 Write a config loader that reads `config/game.json` and constructs `BoardConfig`/`ScoringTable` — `shared/game_config.py::load_match_parameters`
+- [x] T0165 Write unit test: config loader rejects a config missing required fields
+- [ ] T0166 Write unit test: config loader applies defaults correctly when values are absent (where allowed) — deliberately not applicable: unlike the private per-peer TOML, the shared config is the one place physics must be fully explicit; a missing field is always a hard `GameConfigError`, never a silent default (see `docs/PRD_board_physics.md` §3)
+- [x] T0167 Write unit test: loader enforces minimum values are not violated (e.g., `max_barriers >= 14`) — also covers `grid_size >= 7`
+- [x] T0168 Add schema versioning field (`schema_version`) to the config and validate it on load — present in `config/game.json`; `load_match_parameters` rejects any value outside `SUPPORTED_SCHEMA_VERSIONS`
 
 ---
 
@@ -1183,3 +1183,4 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 **Progress log:**
 - Chapter 1 (Dec-POMDP formal model) — 27 tasks checked, 8 newly added (T0890–T0897). See `ProgressDoc.md` for what was executed and why.
 - Chapter 2 (P2P network architecture & FastMCP) — 23 more tasks checked (Section D.1–D.3, plus T0005). Note: Section D.4 (Turn Management) and all of Section C (Stage 1 board/scoring) remain unchecked by design — this project works through `docs/tasks.md` in chapter order (1, 2, 3, ...), not the rulebook's recommended build-priority order (Ch.10), so board logic (Chapter 3) hasn't been reached yet. See `ProgressDoc.md` for details.
+- Chapter 3 (board physics, movement, barriers, capture & scoring) — 73 more tasks checked across Section C.0–C.7. A handful (T0124, T0125, T0155, T0156, T0166) are explicitly left unchecked with inline rationale — mostly because they depend on a barrier-*placing* strategy or a match log that don't exist until Chapter 6/Chapter 5-9 respectively. See `ProgressDoc.md` and `docs/PRD_board_physics.md` for the full write-up.

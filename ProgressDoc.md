@@ -92,4 +92,38 @@ ruff check: All checks passed!
 
 **Tasks checked off:** `docs/TODO.md` T0005, T0169–T0186, T0188–T0191 (23 tasks). T0187 (client retry logic) explicitly deferred to Chapter 8.
 
-**Status:** awaiting review before committing. Next up — Chapter 3 (board physics, movement, barriers, capture & scoring).
+**Status:** committed (5 commits: dependencies, config, source, tests, docs).
+
+---
+
+### Chapter 3 — Physics Mechanics, Board & Scoring System
+
+**What this chapter covers (`docs/tasks.md` §4):** the six Dec-POMDP tuple components Chapter 1 deliberately left as documented placeholders (`S`, `{Ai}`, `P`, `R`) become concrete here: a discrete 7×7 grid, four-directional movement with `STAY`, cop-only barrier placement (adjacent-or-own cell, budget-limited, irreversible), two capture conditions (position match, or the thief fully boxed in), and an asymmetric scoring table encoding the reward function `R`. All physics are self-enforced from one identical, shared `config/game.json` — there is no external judge.
+
+**What was implemented:**
+- `domain/board.py` — `Position` (immutable, hashable), `Move` (StrEnum: N/S/E/W/STAY), `MoveRejectedError`, `BoardConfig`, `Board` (`is_within_bounds`, `is_blocked`, `neighbors` — bounds-only, barrier-agnostic by design — `apply_move`, `place_barrier`). **Caught and fixed a real edge case while writing this**: a cop is allowed to barrier its own occupied cell (Sec. 3.3.4), which would have made a later `STAY` on that same cell wrongly raise `MoveRejectedError` under a naive "check bounds+blocked for every move" implementation — `apply_move` now special-cases `STAY` to bypass those checks entirely, since staying doesn't "enter" a new cell.
+- `domain/capture.py` — `check_capture` (deliberately generic position-equality, so it covers *both* "cop moved onto thief" and "cop's barrier landed on thief" with one function), `is_boxed_in` (all orthogonal neighbors blocked/off-board), `CaptureClaim` (placeholder event shape — Chapter 5/6 adds the real cryptographic signature).
+- `domain/scoring.py` — `MatchOutcome` (CAPTURE/SURVIVAL/TECHNICAL_LOSS/TIE), `ScoringTable` (defaults = Mandatory Parameters Table exactly: 20/5 capture, 5/10 survival, 2/2 tie, 0/0 technical loss), `score_for`.
+- `config/game.json` + `shared/game_config.py` — the shared, identical-for-both-sides physics contract (`board_and_agents`, `movement_and_barriers`, `scoring` sections), with `load_match_parameters` enforcing the mandatory floors (`grid_size ≥ 7`, `max_barriers ≥ 14`) and a `schema_version` compatibility check. Unlike Chapter 2's private per-peer TOML (which reasonably defaults missing optional values), this loader treats every missing required field as a hard error — the whole point of a shared config is that nothing about physics is ever silently assumed.
+- `domain/simulation.py` — a single-process local match harness (`run_local_match`) with explicitly-labeled placeholder policies (`move_toward_policy`, `move_away_policy` — greedy Manhattan-distance, **not** real strategy, which is Chapter 6's territory). Alternates turns, applies moves, checks both capture conditions, and terminates via capture, `survival_threshold`, or the `max_moves` hard cap — with the precedence between the latter two explicitly decided and tested (`max_moves` always wins as the safety net).
+- `main.py` restructured from a single `--role` flag into `serve`/`simulate` subcommands: `serve --role cop|thief` (Chapter 2's server, unchanged behavior) and the new `simulate` (runs a local match against the shipped config and prints the result) — closing what would otherwise have been two under-delivered TODO items (verifying scoring output, having a CLI to exercise the simulation) with working code instead of a written excuse.
+- `docs/PRD_board_physics.md` — the first of the per-mechanism PRD documents promised in `docs/PRD.md` §7, using the corrected `docs/PRD_<mechanism>.md` naming convention instead of the rulebook's own `PRD/01-base-logic.md` suggestion.
+- Tests: `test_board.py`, `test_capture.py`, `test_scoring.py`, `test_game_config.py` (unit), `test_simulation.py` (integration) — 51 new tests (86 total).
+
+**Quality gate results:**
+```
+86 passed in 6.78s
+TOTAL coverage: 99.27% (required: 85.0%)
+ruff check: All checks passed!
+```
+(The 2 uncovered lines in `simulation.py` are the mid-match `is_boxed_in`/post-move-capture checks — genuinely unreachable *this chapter*, since no current policy ever places a barrier. They stay in the code, commented as such, because they're correct and forward-looking for Chapter 6, not dead code by mistake.)
+
+**What was deliberately left undone, and why (see `docs/PRD_board_physics.md` §3 for the full rationale):**
+- **Barrier-placement strategy** (when/where to actually place barriers) is Chapter 6's territory. This chapter proves the barrier *mechanic* is correct in isolation (adjacency, budget, permanence, capture-on-placement) but no policy here ever calls `place_barrier` during a match.
+- **Declared/logged barrier events** (T0124/T0125) wait for a real match log to exist — meaningless to build ahead of Chapter 5/9.
+- **Adversarial illegal-move handling inside the simulation loop** (T0155) isn't reachable because the placeholder policies self-filter; genuinely adversarial input is already handled at the transport layer (Chapter 2) and will be fully covered by the commit-reveal protocol (Chapter 5/6).
+- **Default-filling for missing shared-config fields** (T0166) was a deliberate *won't-do*, not an oversight: the shared config's entire purpose is that both sides' physics are fully explicit, so a missing field is always a hard error.
+
+**Tasks checked off:** `docs/TODO.md` Sections C.0 (carried over from Ch.1) through C.7 — 73 new tasks this chapter (T0091–T0168 minus the 5 explicitly-deferred items above).
+
+**Status:** awaiting review before committing. Next up — Chapter 4 (dynamic pheromone trails & collective memory).
