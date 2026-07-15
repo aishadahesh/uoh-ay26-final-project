@@ -7,6 +7,7 @@ scoring wired together and proven to run a complete match with no crash.
 from pathlib import Path
 
 from police_thief.domain.board import BoardConfig, Position
+from police_thief.domain.scent import ScentConfig
 from police_thief.domain.scoring import MatchOutcome, ScoringTable
 from police_thief.domain.simulation import run_local_match
 from police_thief.shared.game_config import MatchParameters, load_match_parameters
@@ -32,6 +33,7 @@ def test_cop_adjacent_to_thief_captures_on_the_first_turn():
     params = MatchParameters(
         board=BoardConfig(grid_size=7, max_barriers=14),
         scoring=ScoringTable(),
+        scent=ScentConfig(),
         cop_start=Position(0, 0),
         thief_start=Position(0, 1),
         max_moves=35,
@@ -53,6 +55,7 @@ def test_max_moves_is_a_hard_cap_even_if_survival_threshold_is_higher():
     params = MatchParameters(
         board=BoardConfig(grid_size=7, max_barriers=14),
         scoring=ScoringTable(),
+        scent=ScentConfig(),
         cop_start=Position(0, 0),
         thief_start=Position(6, 6),
         max_moves=3,
@@ -68,6 +71,7 @@ def test_max_moves_cap_ends_a_stalemate_style_match():
     params = MatchParameters(
         board=BoardConfig(grid_size=7, max_barriers=14),
         scoring=ScoringTable(),
+        scent=ScentConfig(),
         cop_start=Position(0, 0),
         thief_start=Position(6, 6),
         max_moves=5,
