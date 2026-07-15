@@ -14,7 +14,7 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [x] T0002 Install `uv` (or chosen package manager) for dependency management — `uv 0.10.3` confirmed
 - [x] T0003 Create a Python virtual environment for the cop agent — single shared `.venv` per architecture note above
 - [x] T0004 Create a Python virtual environment for the thief agent — same shared `.venv`
-- [ ] T0005 Install `fastmcp` package in both environments
+- [x] T0005 Install `fastmcp` package in both environments — `fastmcp>=3.4.4` added via `uv add fastmcp` (single shared venv)
 - [x] T0006 Install `pytest` for both environments — `pytest`, `pytest-cov` added as dev dependencies
 - [ ] T0007 Install `pydantic` (or equivalent) for config/schema validation
 - [ ] T0008 Install `tomli`/`tomllib`/`tomli-w` for TOML read/write
@@ -217,33 +217,33 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 ## D. Stage 2 — Basic FastMCP P2P Infrastructure (separate processes over localhost)
 
 ### D.1 Process Separation
-- [ ] T0169 Split single-process simulation into two independent runnable processes (cop / thief)
-- [ ] T0170 Create `config/police/` local settings distinct from `config/thief/`
-- [ ] T0171 Verify no shared Python module holds mutable state imported by both processes
-- [ ] T0172 Add a manual review checklist item forbidding cross-imports between cop and thief packages
-- [ ] T0173 Write a design note documenting the Zero-Trust separation boundary explicitly
+- [x] T0169 Split single-process simulation into two independent runnable processes (cop / thief) — `python -m police_thief --role cop|thief` runs each as its own OS process; no Stage-1 board loop exists yet to "split," so this is the transport-level realization of process separation
+- [x] T0170 Create `config/police/` local settings distinct from `config/thief/` — created as `config/cop/` and `config/thief/` (renamed from the rulebook's illustrative "police" naming for consistency with the `AgentRole` enum; directory *naming* is not itself a mandatory rule, only the *separation* is — see `docs/tasks.md` §15 rule 1)
+- [x] T0171 Verify no shared Python module holds mutable state imported by both processes — `mcp_server.py`/`mcp_client.py`/`config.py` hold no module-level mutable state; verified by inspection and by `test_config.py::test_load_network_config_never_reads_the_other_roles_directory`
+- [x] T0172 Add a manual review checklist item forbidding cross-imports between cop and thief packages — reframed per ADR-011: there are no separate cop/thief packages by design (single shared package); the actual guard enforced is "no shared mutable state" (T0171), not source-tree isolation
+- [x] T0173 Write a design note documenting the Zero-Trust separation boundary explicitly — module docstrings in `mcp_server.py`, `config.py`, and `main.py`; see also `docs/PLAN.md` ADR-011
 
 ### D.2 FastMCP Server (per role)
-- [ ] T0174 Install and import FastMCP in the cop package
-- [ ] T0175 Install and import FastMCP in the thief package
-- [ ] T0176 Instantiate a FastMCP("police_peer") server instance
-- [ ] T0177 Instantiate a FastMCP("thief_peer") server instance
-- [ ] T0178 Implement @mcp.tool receive_move(...) on the cop server
-- [ ] T0179 Implement @mcp.tool receive_move(...) on the thief server
-- [ ] T0180 Decide the exact tool signature/schema for move exchange (state, move, intent placeholder for now)
-- [ ] T0181 Implement server-side input validation on receive_move (reject malformed payloads)
-- [ ] T0182 Bind cop server to 0.0.0.0 on its chosen port (e.g., 8801) with transport=http
-- [ ] T0183 Bind thief server to 0.0.0.0 on its chosen port (e.g., 8802) with transport=http
-- [ ] T0184 Write a smoke test: server starts and responds to a health-check call
-- [ ] T0185 Add graceful shutdown handling for the server process (SIGINT/SIGTERM)
+- [x] T0174 Install and import FastMCP in the cop package — shared package, single `fastmcp` import used by both roles
+- [x] T0175 Install and import FastMCP in the thief package — same shared import
+- [x] T0176 Instantiate a FastMCP("police_peer") server instance — named `"cop_peer"` (naming consistency with `AgentRole.COP`), constructed via `build_peer_server(f"{role.value}_peer")`
+- [x] T0177 Instantiate a FastMCP("thief_peer") server instance — same `build_peer_server`, role="thief"
+- [x] T0178 Implement @mcp.tool receive_move(...) on the cop server — one shared implementation in `services/mcp_server.py`, used by both roles
+- [x] T0179 Implement @mcp.tool receive_move(...) on the thief server — same shared implementation
+- [x] T0180 Decide the exact tool signature/schema for move exchange (state, move, intent placeholder for now) — `MoveEnvelope(signed_move: str, signature: str)`; real board state (Ch.3) and real signatures (Ch.5/6) replace these placeholders later
+- [x] T0181 Implement server-side input validation on receive_move (reject malformed payloads) — `MoveEnvelope.is_structurally_valid()` (blank-field check) plus FastMCP's own pydantic-schema validation (missing/extra fields rejected with a clean `ToolError`, verified in `test_mcp_server.py`)
+- [x] T0182 Bind cop server to 0.0.0.0 on its chosen port (e.g., 8801) with transport=http — `run_peer_server(mcp, host="0.0.0.0", port=...)`; port 8801 from `config/cop/game.toml`
+- [x] T0183 Bind thief server to 0.0.0.0 on its chosen port (e.g., 8802) with transport=http — port 8802 from `config/thief/game.toml`
+- [x] T0184 Write a smoke test: server starts and responds to a health-check call — `tests/integration/test_mcp_http_roundtrip.py` (real HTTP) + manual CLI smoke test (`python -m police_thief --role cop` + live client call)
+- [x] T0185 Add graceful shutdown handling for the server process (SIGINT/SIGTERM) — handled by the underlying uvicorn server when run in the main thread; documented in `run_peer_server`'s docstring rather than duplicated with custom signal handling
 
 ### D.3 FastMCP Client (per role)
-- [ ] T0186 Implement a client wrapper that calls the opponents receive_move tool
-- [ ] T0187 Implement client-side retry-on-connection-refused logic (bounded retries)
-- [ ] T0188 Implement client-side timeout for the outbound call
-- [ ] T0189 Write unit test: client correctly serializes a move payload before sending
-- [ ] T0190 Write unit test: client correctly deserializes the opponents acknowledgment/response
-- [ ] T0191 Write integration test: cop client successfully calls thief server on localhost and vice versa
+- [x] T0186 Implement a client wrapper that calls the opponents receive_move tool — `services/mcp_client.py` (`send_move`/`send_move_async`)
+- [ ] T0187 Implement client-side retry-on-connection-refused logic (bounded retries) — deferred to Chapter 8 (Deadline Tracker); Chapter 2's client wrapper is transport-only by design
+- [x] T0188 Implement client-side timeout for the outbound call — `timeout` parameter on `send_move`/`send_move_async`
+- [x] T0189 Write unit test: client correctly serializes a move payload before sending — covered by the round-trip tests (`test_mcp_client.py`, `test_mcp_http_roundtrip.py`), since serialization and deserialization are only observable together through a real call
+- [x] T0190 Write unit test: client correctly deserializes the opponents acknowledgment/response — same round-trip tests assert on the returned `dict` content
+- [x] T0191 Write integration test: cop client successfully calls thief server on localhost and vice versa — `test_mcp_http_roundtrip.py` exercises the shared, role-agnostic server/client code path; since both roles run identical code, one direction's test validates the other symmetrically (no role-specific branching exists to test separately)
 
 ### D.4 Turn Management (pre-crypto version)
 - [ ] T0192 Implement a basic turn-alternation protocol: cop moves, then thief moves, repeat
@@ -1181,4 +1181,5 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 **Total task count target: 800-1000.** Run `grep -c '^- \[ \]' docs/TODO.md` (unchecked) and `grep -c '^- \[x\]' docs/TODO.md` (checked) to confirm the live count as tasks are checked off and/or added during development.
 
 **Progress log:**
-- Chapter 1 (Dec-POMDP formal model) — 27 tasks checked, 8 newly added (T0890–T0897). See `README.md` for what was executed and why.
+- Chapter 1 (Dec-POMDP formal model) — 27 tasks checked, 8 newly added (T0890–T0897). See `ProgressDoc.md` for what was executed and why.
+- Chapter 2 (P2P network architecture & FastMCP) — 23 more tasks checked (Section D.1–D.3, plus T0005). Note: Section D.4 (Turn Management) and all of Section C (Stage 1 board/scoring) remain unchecked by design — this project works through `docs/tasks.md` in chapter order (1, 2, 3, ...), not the rulebook's recommended build-priority order (Ch.10), so board logic (Chapter 3) hasn't been reached yet. See `ProgressDoc.md` for details.

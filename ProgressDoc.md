@@ -23,7 +23,14 @@ uv run pytest --cov     # run the test suite with coverage
 uv run ruff check .     # lint (must report zero violations)
 ```
 
-**Architecture note (see `docs/PLAN.md` ADR-011):** the cop and thief agents are developed as **one shared package** (`police_thief`), differentiated at runtime via a `--role cop`/`--role thief` flag and separate `config/police/`/`config/thief/` directories, rather than as two duplicated repos from the first commit. This satisfies the rulebook's "no shared runtime state between the two sides" requirement (two OS processes running this package never share memory), while avoiding premature duplication of shared/generic code. The rulebook's mandatory **two separate GitHub repos** deliverable is produced later, at submission time, by exporting this codebase into two tagged repos (tracked in `docs/TODO.md` Section O).
+**Architecture note (see `docs/PLAN.md` ADR-011):** the cop and thief agents are developed as **one shared package** (`police_thief`), differentiated at runtime via a `--role cop`/`--role thief` flag and separate `config/cop/`/`config/thief/` directories, rather than as two duplicated repos from the first commit. This satisfies the rulebook's "no shared runtime state between the two sides" requirement (two OS processes running this package never share memory), while avoiding premature duplication of shared/generic code. The rulebook's mandatory **two separate GitHub repos** deliverable is produced later, at submission time, by exporting this codebase into two tagged repos (tracked in `docs/TODO.md` Section O).
+
+```bash
+# Try it: start one peer, call it from the other side's client
+uv run python -m police_thief --role cop &      # binds 0.0.0.0:8801
+uv run python -c "from police_thief.services.mcp_client import send_move; \
+print(send_move('http://127.0.0.1:8801/mcp', signed_move='N', signature='abc123'))"
+```
 
 ---
 
@@ -53,4 +60,36 @@ ruff check: All checks passed!
 
 **Tasks checked off:** `docs/TODO.md` T0001, T0002, T0006, T0024, T0027, T0028, T0044–T0049, T0066–T0070, plus 8 new tasks added for this chapter's actual scope of work (T0890–T0897). See the "Progress log" note at the end of `docs/TODO.md`.
 
-**Status:** awaiting review before committing. Next up — Chapter 2 (P2P network architecture & FastMCP).
+**Status:** committed (5 commits: scaffolding, domain model, tests, docs/ADR-011, ProgressDoc.md).
+
+---
+
+### Chapter 2 — P2P Network Architecture & FastMCP
+
+**What this chapter covers (`docs/tasks.md` §3):** full decentralization — no central game server; each peer keeps only its own local truth. Every agent is simultaneously an MCP **server** (exposes tools the opponent calls) and an MCP **client** (calls the opponent's tools), fully symmetric with no "strong"/"weak" side. Tunneling (ngrok/Localtonet) later exposes each local server to the public internet. A mandatory rule requires cop and thief to run as fully separate processes with no shared runtime state, each loading its own config directory.
+
+**What was implemented:**
+- Added `fastmcp>=3.4.4` as a real dependency (previously only referenced in docs) and inspected its actual 3.x API directly rather than trusting the rulebook's illustrative (older-style) example code verbatim — confirmed the real transport URL pattern (`http://host:port/mcp`), the in-memory `Client(mcp_instance)` transport (fast tests, no sockets), and that FastMCP already derives a pydantic schema from the tool's function signature, rejecting missing/extra fields with a clean `ToolError` before our own code ever runs.
+- `src/police_thief/services/mcp_server.py` — `MoveEnvelope` (placeholder wire format: `signed_move`, `signature` — real board moves arrive in Ch.3, real cryptographic signatures in Ch.5/6) with `is_structurally_valid()` (defensive blank-field check, explicitly *not* cryptographic verification); `build_peer_server(peer_name)` constructing a `FastMCP` instance exposing the `receive_move` tool (schema-versioned via `@mcp.tool(version=...)`); `run_peer_server(mcp, host, port)` binding to `0.0.0.0` (required for later tunnel exposure).
+- `src/police_thief/services/mcp_client.py` — `send_move`/`send_move_async` calling the opponent's `receive_move` tool, wrapping any failure in `PeerClientError`. Deliberately does **not** implement retry logic — that's Chapter 8's Deadline Tracker concern, kept out of this transport-only wrapper.
+- `src/police_thief/shared/config.py` — `load_network_config(role, config_root)` reading only `config/<role>/game.toml`'s `[network]` section (`my_port`, `opponent_url`, `turn_timeout_seconds`); raises `ConfigError` on a missing file or missing required key. Never reads the other role's directory.
+- `config/cop/game.toml`, `config/thief/game.toml` — the concrete realization of the mandatory environment-separation rule. **Naming note:** renamed from the rulebook's illustrative `config/police/` to `config/cop/` to stay internally consistent with the `AgentRole` enum (`COP = "cop"`) introduced in Chapter 1 — directory *naming* isn't itself a mandatory rule (only the *separation* is; see `docs/tasks.md` §15 rule 1), so this is a safe, deliberate deviation, not a rule violation.
+- `src/police_thief/main.py` + `src/police_thief/__main__.py` — CLI entry point: `uv run python -m police_thief --role cop|thief` loads only that role's config and starts its FastMCP server. This is where "separate processes, no shared memory" stops being a design intention and becomes an observable fact: two independent OS processes, each with its own interpreter and heap.
+- Tests: `tests/unit/test_mcp_server.py` (in-memory transport — `MoveEnvelope` validation, valid/invalid payloads, FastMCP's own missing/extra-field rejection), `tests/unit/test_config.py` (TOML loading, missing file/key errors, cross-role isolation), `tests/unit/test_mcp_client.py` (unreachable-opponent error path), `tests/integration/test_mcp_http_roundtrip.py` (a **real** HTTP server bound to an actual OS port in a background thread, called over genuine HTTP — not mocked).
+- Added `pytest-asyncio` (`asyncio_mode = "auto"` in `pyproject.toml`) since FastMCP's client API is async-native.
+- **Manual end-to-end smoke test** beyond the automated suite: ran `python -m police_thief --role cop` as a real subprocess, then called it from a separate Python process via `send_move` over real HTTP — confirmed `{"accepted": True, "move": "N"}`, proving the full CLI → config → server → client path works, not just the unit-tested building blocks.
+
+**Quality gate results:**
+```
+35 passed in 6.80s
+TOTAL coverage: 100.00% (required: 85.0%)
+ruff check: All checks passed!
+```
+
+**Why this chapter has no turn-alternation game loop or board-aware payloads yet:** Chapter 2 in the rulebook is about the *transport* (P2P architecture, FastMCP, environment separation) — not about *what* is transported. A real turn loop needs board state (Chapter 3) and a real trust mechanism needs the commit-reveal protocol (Chapter 5/6); building either here would mean inventing throwaway stand-ins for designs not yet made. What Chapter 2 needed to prove — and did, with a real (not mocked) HTTP round trip — is that two independent, config-isolated processes can reach each other symmetrically over MCP.
+
+**Deviation from `docs/TODO.md`'s own stage order, and why:** `docs/TODO.md` follows the rulebook's *recommended build priority* (Ch.10: board logic before networking), whereas this session follows `docs/tasks.md`'s *chapter order* (1, 2, 3, ...) per instruction. Section D (Stage 2 / Chapter 2 content) is therefore checked off before Section C (Stage 1 / Chapter 3 content) — the opposite of `docs/TODO.md`'s own recommended sequence. This is a deliberate, explicit choice for accuracy/traceability against `docs/tasks.md`, not an oversight; it is flagged in `docs/TODO.md`'s progress log so the discrepancy is never silently ambiguous.
+
+**Tasks checked off:** `docs/TODO.md` T0005, T0169–T0186, T0188–T0191 (23 tasks). T0187 (client retry logic) explicitly deferred to Chapter 8.
+
+**Status:** awaiting review before committing. Next up — Chapter 3 (board physics, movement, barriers, capture & scoring).
