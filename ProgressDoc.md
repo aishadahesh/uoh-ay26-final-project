@@ -126,4 +126,32 @@ ruff check: All checks passed!
 
 **Tasks checked off:** `docs/TODO.md` Sections C.0 (carried over from Ch.1) through C.7 — 73 new tasks this chapter (T0091–T0168 minus the 5 explicitly-deferred items above).
 
-**Status:** awaiting review before committing. Next up — Chapter 4 (dynamic pheromone trails & collective memory).
+**Status:** committed (6 commits: shared config, board, capture/scoring, simulation+CLI, tests, docs).
+
+---
+
+### Chapter 4 — Dynamic Pheromone Trails & Collective Memory of the Trail
+
+**What this chapter covers (`docs/tasks.md` §5):** Stigmergy — indirect coordination through changing the shared environment, the same mechanism ant colonies use with no central dispatcher. Every agent emits a 5×5 scent footprint around its own position every turn, decaying by a fixed rate each turn; this is the concrete realization of the Dec-POMDP's `{Ωi}, O` (observation) components that Chapter 1 left as documented placeholders. Scent is explicitly natural and non-fakeable — unlike a verbal hint (Chapter 6), it cannot lie. **Scope note:** `docs/tasks.md` Chapter 4 covers *only* the emission/decay mechanics (§4.1-4.2) plus qualitative narrative about lie-detection (§4.3); the actual belief-map formula, natural-language hints, and LLM integration are Chapter 6 content, even though `docs/TODO.md`'s own stage grouping ("Stage 4 — Language + Scent") bundles them together. This session followed `docs/tasks.md`'s chapter boundary, not the TODO's stage grouping.
+
+**What was implemented:**
+- `domain/scent.py` — `ScentConfig` (center_intensity=0.9, decay_rate=0.10, field_size=5 — all **fixed** per the Mandatory Parameters Table, not minimums) and `ScentField` (`emit`, `decay`, `intensity_at`), implementing the mandatory equation `τ(t+1) = max(0, (1-ρ)·τ(t) + Δτ)` as two method calls per turn (`decay()` then `emit()`), with a linear Manhattan-distance radial falloff (0.9/0.6/0.3/0.0 at distances 0/1/2/3).
+- `config/game.json` gained a `pheromones` section; `game_config.py` now parses it into a `ScentConfig` and — unlike Chapter 3's floor checks — validates all three values as **exactly** fixed (any deviation is a hard `GameConfigError`), since the Mandatory Parameters Table marks these as fixed, not negotiable minimums.
+- `domain/simulation.py` now constructs two independent `ScentField` instances (`cop_scent`, `thief_scent`) and decays+emits each one every turn; both are exposed on `MatchResult` for inspection. No policy reads them for decisions yet — that's still Chapter 6's belief-map territory.
+- `docs/PRD_pheromone_scent.md` — the second per-mechanism PRD.
+- Tests: `test_scent.py` (14 tests) + `test_scent_trail.py` integration tests (2 tests) + 4 new `test_game_config.py` tests for the fixed-value rejection — 19 new tests (105 total).
+
+**Quality gate results:**
+```
+105 passed in 6.82s
+TOTAL coverage: 99.41% (required: 85.0%)
+ruff check: All checks passed!
+```
+
+**A genuine rulebook tension found and resolved, not papered over:** while verifying the formula against the rulebook's own worked example (Sec. 4.3.4's "~0.81" number — which I reproduced exactly: emit 0.9, decay once with no re-emission, get 0.81), I noticed the same section's descriptive text calls scent intensity "a continuous value in `[0, 0.9]`" — but the *mandatory* formula adds a fresh 0.9 every single turn an agent remains present, which mathematically exceeds 0.9 after just two consecutive turns in the same cell (0.9 → 0.81 + 0.9 = 1.71, confirmed empirically before writing the test). Rather than silently capping the value to match the prose (which would have been an undocumented deviation from a rule explicitly marked MANDATORY), I implemented the formula literally and used the project's own "academic freedom in case of contradiction" clause (`docs/tasks.md` Sec. 0.4) to document the choice explicitly — in the code's docstring, in a dedicated test (`test_sustained_presence_can_exceed_the_bare_center_intensity`), in `docs/PRD_pheromone_scent.md` §3, and in `docs/TODO.md`'s T0277 (left unchecked, since "never exceeds the ceiling" literally doesn't hold — checking it off would have misrepresented the code).
+
+**What was deliberately left undone, and why:** belief-map construction, hint generation/parsing, LLM integration, and the lie-detection classifier are all Chapter 6 content (`docs/TODO.md` Sections F.2-F.6 remain unchecked). This chapter instead proves the *precondition* those future mechanisms will depend on: `test_thief_scent_trail_concentrates_near_its_actual_path_not_elsewhere` shows that after a real simulated match, the raw scent trail already carries the hot-path/cold-path asymmetry a lie-detector would need — without building the lie-detector itself ahead of its own chapter.
+
+**Tasks checked off:** `docs/TODO.md` Section F.1 — 12 of 15 tasks (T0278 and T0280 deferred to Chapter 6/7 respectively; T0277 left explicitly unchecked as documented above, not simply skipped).
+
+**Status:** awaiting review before committing. Next up — Chapter 5 (cryptographic security & Zero-Knowledge protocol).

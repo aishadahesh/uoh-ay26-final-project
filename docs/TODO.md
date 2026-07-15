@@ -350,21 +350,21 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 ## F. Stage 4 — Language + Scent (pheromone mechanics, deception hints, LLM integration)
 
 ### F.1 Pheromone Emission & Decay
-- [ ] T0266 Define `ScentField` data structure sized `[scent field size]` (default 5x5) centered on an agent
-- [ ] T0267 Implement emission with `scent_center_intensity` (default 0.9) at the emitting agent's own cell
-- [ ] T0268 Implement radial falloff of intensity from the emission center across the 5x5 field
-- [ ] T0269 Implement the mandatory decay formula: tau(t+1) = max(0, (1 - rho) * tau(t) + delta_tau)
-- [ ] T0270 Wire `rho` (scent decay rate, default 0.10) from config, not hardcoded
-- [ ] T0271 Implement per-cell scent state storage for the full board grid
-- [ ] T0272 Implement per-turn decay application across the entire board (both agents' emissions)
-- [ ] T0273 Write unit test: emission at t=0 yields exactly `scent_center_intensity` at the agent's own cell
-- [ ] T0274 Write unit test: decay-only cell (agent left) follows the exact decay curve over N turns
-- [ ] T0275 Write unit test: re-emission while agent remains present keeps intensity elevated at/above the decay floor
-- [ ] T0276 Write unit test: scent value never goes negative (floor at zero enforced)
-- [ ] T0277 Write unit test: scent value never exceeds the configured intensity ceiling
-- [ ] T0278 Implement symmetric scent tracking: cop's field is visible to the thief's belief logic and vice versa
-- [ ] T0279 Verify scent maps are computed independently per side from each side's own local observations (no shared object)
-- [ ] T0280 Add a debug visualization/printout of the scent grid for development purposes
+- [x] T0266 Define `ScentField` data structure sized `[scent field size]` (default 5x5) centered on an agent
+- [x] T0267 Implement emission with `scent_center_intensity` (default 0.9) at the emitting agent's own cell
+- [x] T0268 Implement radial falloff of intensity from the emission center across the 5x5 field
+- [x] T0269 Implement the mandatory decay formula: tau(t+1) = max(0, (1 - rho) * tau(t) + delta_tau)
+- [x] T0270 Wire `rho` (scent decay rate, default 0.10) from config, not hardcoded — and validated as FIXED (not a minimum), per the Mandatory Parameters Table
+- [x] T0271 Implement per-cell scent state storage for the full board grid — sparse `dict[Position, float]`; untouched cells are implicitly 0.0
+- [x] T0272 Implement per-turn decay application across the entire board (both agents' emissions) — wired into `run_local_match`: each side's field decays then emits once per turn
+- [x] T0273 Write unit test: emission at t=0 yields exactly `scent_center_intensity` at the agent's own cell
+- [x] T0274 Write unit test: decay-only cell (agent left) follows the exact decay curve over N turns — `test_decay_only_cell_follows_the_exact_geometric_curve_over_n_turns`
+- [x] T0275 Write unit test: re-emission while agent remains present keeps intensity elevated at/above the decay floor
+- [x] T0276 Write unit test: scent value never goes negative (floor at zero enforced)
+- [ ] T0277 Write unit test: scent value never exceeds the configured intensity ceiling — **does not hold**, and is documented as a deliberate interpretation choice (`docs/PRD_pheromone_scent.md` §3, invoking the academic-freedom-on-contradiction clause, `docs/tasks.md` Sec. 0.4): the rulebook's own MANDATORY formula adds a fresh 0.9 every turn an agent is present, which providably exceeds 0.9 after two consecutive turns in the same cell. Implemented the formula literally rather than silently capping it; the actual (uncapped) behavior is tested directly instead (`test_sustained_presence_can_exceed_the_bare_center_intensity`)
+- [ ] T0278 Implement symmetric scent tracking: cop's field is visible to the thief's belief logic and vice versa — the two independent, symmetric fields exist and are proven not to share state, but there is no "belief logic" yet to make them visible to (Chapter 6)
+- [x] T0279 Verify scent maps are computed independently per side from each side's own local observations (no shared object)
+- [ ] T0280 Add a debug visualization/printout of the scent grid for development purposes — deferred to Chapter 7's GUI work, where a real rendering surface already needs to exist
 
 ### F.2 Belief Map Construction
 - [ ] T0281 Define `BeliefMap` structure: probability distribution `b(s)` over board cells
@@ -1184,3 +1184,4 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - Chapter 1 (Dec-POMDP formal model) — 27 tasks checked, 8 newly added (T0890–T0897). See `ProgressDoc.md` for what was executed and why.
 - Chapter 2 (P2P network architecture & FastMCP) — 23 more tasks checked (Section D.1–D.3, plus T0005). Note: Section D.4 (Turn Management) and all of Section C (Stage 1 board/scoring) remain unchecked by design — this project works through `docs/tasks.md` in chapter order (1, 2, 3, ...), not the rulebook's recommended build-priority order (Ch.10), so board logic (Chapter 3) hasn't been reached yet. See `ProgressDoc.md` for details.
 - Chapter 3 (board physics, movement, barriers, capture & scoring) — 73 more tasks checked across Section C.0–C.7. A handful (T0124, T0125, T0155, T0156, T0166) are explicitly left unchecked with inline rationale — mostly because they depend on a barrier-*placing* strategy or a match log that don't exist until Chapter 6/Chapter 5-9 respectively. See `ProgressDoc.md` and `docs/PRD_board_physics.md` for the full write-up.
+- Chapter 4 (dynamic pheromone trails) — 12 more tasks checked in Section F.1 only (emission/decay mechanics). Section F.2 onward (belief map, hint parsing, LLM integration, deception) is deliberately untouched: `docs/tasks.md` scopes that content to Chapter 6, even though this TODO's own stage grouping (F, "Language + Scent") bundles it together with scent. One genuine, documented rulebook tension was found and resolved via the academic-freedom-on-contradiction clause (T0277) rather than silently papered over. See `ProgressDoc.md` and `docs/PRD_pheromone_scent.md`.
