@@ -2,18 +2,20 @@
 
 Derived from `requirements.md` (itself derived from `ref/police_thief_p2p.pdf` + `ref/software_submission_guidelines-V3.pdf`). Organized by the book's recommended 7-layer incremental build order (Ch.10), plus setup, reliability, league, testing, docs, and submission phases. Each task is atomic and checkable. "Both roles" means duplicate the task once for the cop repo and once for the thief repo, since they must run as fully separate codebases/processes.
 
-Legend: `[ ]` = not started. Do not skip layers — each stage should be end-to-end working before the next begins (Ch.10).
+Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage should be end-to-end working before the next begins (Ch.10).
+
+> **Architecture decision recorded during implementation (see `docs/PLAN.md` ADR-011):** development proceeds as a **single shared package/repo** (`police_thief`, role-differentiated via `--role cop`/`--role thief` and separate `config/police/`/`config/thief/` directories) rather than two duplicated repos from day one. This satisfies the "no shared runtime state" rule (two OS processes importing the same stateless module still share no memory) while avoiding premature code duplication. The literal two-GitHub-repos submission requirement (rule 49) is deferred to Section O (Submission Prep), where this codebase will be exported into two tagged repos before final submission. Tasks below written as "for cop repo" / "for thief repo" are satisfied by this single shared structure during development unless noted otherwise.
 
 ---
 
 ## A. Environment & Tooling Setup
 
-- [ ] T0001 Install Python 3.11+ and confirm version on dev machine
-- [ ] T0002 Install `uv` (or chosen package manager) for dependency management
-- [ ] T0003 Create a Python virtual environment for the cop agent
-- [ ] T0004 Create a Python virtual environment for the thief agent
+- [x] T0001 Install Python 3.11+ and confirm version on dev machine — `requires-python = ">=3.11"` in `pyproject.toml`; `uv sync` resolved a 3.14.2 venv
+- [x] T0002 Install `uv` (or chosen package manager) for dependency management — `uv 0.10.3` confirmed
+- [x] T0003 Create a Python virtual environment for the cop agent — single shared `.venv` per architecture note above
+- [x] T0004 Create a Python virtual environment for the thief agent — same shared `.venv`
 - [ ] T0005 Install `fastmcp` package in both environments
-- [ ] T0006 Install `pytest` for both environments
+- [x] T0006 Install `pytest` for both environments — `pytest`, `pytest-cov` added as dev dependencies
 - [ ] T0007 Install `pydantic` (or equivalent) for config/schema validation
 - [ ] T0008 Install `tomli`/`tomllib`/`tomli-w` for TOML read/write
 - [ ] T0009 Install `google-api-python-client`, `google-auth-httplib2`, `google-auth-oauthlib` for Gmail API
@@ -31,11 +33,11 @@ Legend: `[ ]` = not started. Do not skip layers — each stage should be end-to-
 - [ ] T0021 Store API key in a local `.env` file, never committed
 - [ ] T0022 Verify Claude Code CLI installed and authenticated for `claude_cli` mode
 - [ ] T0023 Set up `pre-commit` hooks (lint/format) for both repos
-- [ ] T0024 Configure `ruff`/`flake8` linting rules
+- [x] T0024 Configure `ruff`/`flake8` linting rules — `[tool.ruff]`/`[tool.ruff.lint]` in `pyproject.toml`, zero violations confirmed
 - [ ] T0025 Configure `black` (or chosen formatter) settings
 - [ ] T0026 Set up `mypy` or `pyright` for type checking (optional but recommended)
-- [ ] T0027 Decide on Python package name/namespace for cop project (e.g., `police_thief`)
-- [ ] T0028 Decide on Python package name/namespace for thief project
+- [x] T0027 Decide on Python package name/namespace for cop project (e.g., `police_thief`) — single shared package `police_thief` (see architecture note)
+- [x] T0028 Decide on Python package name/namespace for thief project — same shared package `police_thief`
 - [ ] T0029 Set up a shared local scratch directory for test logs/screenshots
 - [ ] T0030 Verify two terminals can run two independent Python processes simultaneously without port clash
 - [ ] T0031 Choose port numbers for cop's local FastMCP server (e.g., 8801)
@@ -53,15 +55,15 @@ Legend: `[ ]` = not started. Do not skip layers — each stage should be end-to-
 
 ## B. Repository & Project Scaffolding (both roles)
 
-- [ ] T0041 Create GitHub repo for the cop agent
-- [ ] T0042 Create GitHub repo for the thief agent
+- [ ] T0041 Create GitHub repo for the cop agent — deferred to Section O submission-prep repo split
+- [ ] T0042 Create GitHub repo for the thief agent — deferred to Section O submission-prep repo split
 - [ ] T0043 Set repo visibility: public, or private + share with lecturer's address
-- [ ] T0044 Initialize `git` in both local project folders
-- [ ] T0045 Create initial `.gitignore` for cop repo (Python defaults + secrets)
-- [ ] T0046 Create initial `.gitignore` for thief repo (Python defaults + secrets)
-- [ ] T0047 Add `credentials.json` to `.gitignore` in both repos
-- [ ] T0048 Add `token.json` to `.gitignore` in both repos
-- [ ] T0049 Add `.env` to `.gitignore` in both repos
+- [x] T0044 Initialize `git` in both local project folders — single shared repo initialized (initial commit already present)
+- [x] T0045 Create initial `.gitignore` for cop repo (Python defaults + secrets) — single shared `.gitignore`, Python/venv/secrets patterns added
+- [x] T0046 Create initial `.gitignore` for thief repo (Python defaults + secrets) — same shared `.gitignore`
+- [x] T0047 Add `credentials.json` to `.gitignore` in both repos
+- [x] T0048 Add `token.json` to `.gitignore` in both repos
+- [x] T0049 Add `.env` to `.gitignore` in both repos
 - [ ] T0050 Add `logs/` directory to `.gitignore` (or decide to keep sample logs tracked)
 - [ ] T0051 Create top-level package folder structure for cop repo (`domain/`, `infra/`, `shared/`)
 - [ ] T0052 Create top-level package folder structure for thief repo (mirrored)
@@ -78,11 +80,11 @@ Legend: `[ ]` = not started. Do not skip layers — each stage should be end-to-
 - [ ] T0063 Create `TODO.md` task file inside cop repo (project-management copy, distinct from this master file)
 - [ ] T0064 Create `TODO.md` task file inside thief repo
 - [ ] T0065 Create `LICENSE` file (confirm educational-use terms if reusing example code)
-- [ ] T0066 Add `pyproject.toml` / `requirements.txt` for cop repo dependencies
-- [ ] T0067 Add `pyproject.toml` / `requirements.txt` for thief repo dependencies
-- [ ] T0068 Set up `tests/` directory skeleton (cop repo)
-- [ ] T0069 Set up `tests/` directory skeleton (thief repo)
-- [ ] T0070 Set up `docs/` directory for research/analysis reports (both repos)
+- [x] T0066 Add `pyproject.toml` / `requirements.txt` for cop repo dependencies — single shared `pyproject.toml` (uv-managed, `uv.lock` committed)
+- [x] T0067 Add `pyproject.toml` / `requirements.txt` for thief repo dependencies — same shared `pyproject.toml`
+- [x] T0068 Set up `tests/` directory skeleton (cop repo) — `tests/{unit,integration}` created
+- [x] T0069 Set up `tests/` directory skeleton (thief repo) — same shared `tests/` tree
+- [x] T0070 Set up `docs/` directory for research/analysis reports (both repos) — `docs/` already holds `tasks.md`, `TODO.md`, `PRD.md`, `PLAN.md`
 - [ ] T0071 Create initial commit for cop repo
 - [ ] T0072 Create initial commit for thief repo
 - [ ] T0073 Push cop repo to GitHub remote
@@ -107,6 +109,16 @@ Legend: `[ ]` = not started. Do not skip layers — each stage should be end-to-
 ---
 
 ## C. Stage 1 — Base Logic: Board, Movement, Barriers, Capture (single process, no networking)
+
+### C.0 Dec-POMDP Formal Model (Chapter 1 of `docs/tasks.md`) — *added during implementation*
+- [x] T0890 Scaffold project structure: `pyproject.toml` (uv + ruff + pytest/coverage config), `src/police_thief` package, `tests/{unit,integration}`
+- [x] T0891 Implement `AgentRole` enum and `NUM_AGENTS = 2` constant (`shared/constants.py`) representing the fixed `n` in the Dec-POMDP tuple
+- [x] T0892 Implement version tracking (`shared/version.py`, `VERSION = "1.00"`) per the submission-guidelines versioning convention
+- [x] T0893 Implement `DecPOMDPSpec` dataclass + discount-factor validation (`domain/dec_pomdp.py`), documenting the `<n, S, {Ai}, P, R, {Omega_i}, O, gamma>` tuple and where each remaining component (S, {Ai}, P, R, {Omega_i}, O) will be concretized in later chapters
+- [x] T0894 Write unit tests for `AgentRole`, `NUM_AGENTS`, discount-factor validation, and `DecPOMDPSpec` immutability
+- [x] T0895 Create `config/setup.json` and `config/rate_limits.json` version-tracked skeletons (content to be wired to real code in Stage 7 / Chapter 9's Gatekeeper)
+- [x] T0896 Create `.env-example` and extend `.gitignore` for Python artifacts, `.venv`, and secrets
+- [x] T0897 Run `uv sync`, `pytest --cov` (100% coverage on new code), and `ruff check` (zero violations) as the Chapter-1 quality gate
 
 ### C.1 Board & Coordinate System
 - [ ] T0091 Define `BoardConfig` data structure (grid_size, axis_origin_corner, axis_start_index)
@@ -1166,4 +1178,7 @@ Legend: `[ ]` = not started. Do not skip layers — each stage should be end-to-
 
 ---
 
-**Total task count target: 800-1000.** Run `grep -c '^- \[ \]' TODO.md` to confirm the live count as tasks are checked off and/or added during development.
+**Total task count target: 800-1000.** Run `grep -c '^- \[ \]' docs/TODO.md` (unchecked) and `grep -c '^- \[x\]' docs/TODO.md` (checked) to confirm the live count as tasks are checked off and/or added during development.
+
+**Progress log:**
+- Chapter 1 (Dec-POMDP formal model) — 27 tasks checked, 8 newly added (T0890–T0897). See `README.md` for what was executed and why.
