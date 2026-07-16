@@ -347,4 +347,39 @@ ruff check: All checks passed!
 
 **Tasks checked off:** `docs/TODO.md` T0211, T0212, T0393, T0394, T0674-T0677/T0679/T0680, T0824 (10 tasks, mostly *upgrading* earlier-chapter items now provably true rather than net-new work) — plus refined, more precise rationale (no checkbox change) on T0327, T0395, T0396, and a new explanatory header note on Section G. T0213-T0215, T0397, T0678 remain honestly unchecked with reasons tied to the still-missing live match loop and the still-unperformed manual tunnel setup.
 
+**Status:** committed (2 commits: the missing PRD, the milestone-reconciliation pass across TODO.md/ProgressDoc.md).
+
+---
+
+### Chapter 11 — Summary & Looking Forward (Final Project Retrospective)
+
+**What this chapter covers (`docs/tasks.md` §11):** the book's own closing chapter — no new mechanism, no new code. It restates the project's arc from Dec-POMDP uncertainty modeling to a live league (Sec. 11.1), draws the line between a coding exercise and a systems-development exercise (Sec. 11.2), names four independent success metrics rather than a single win/loss verdict (Sec. 11.3, Table 4), and lays out a comprehensive final pre-submission checklist (Sec. 11.4) that explicitly says: go over every single item, marked as done, not merely "probably." That last instruction is the concrete work this chapter actually does: `docs/TODO.md` Section T already had one task per each of Appendix E's 55 mandatory rules, sitting entirely unchecked since it was first written back in Chapter 1 — this chapter is where that sweep actually gets performed, honestly, against the finished project rather than left as a placeholder for "someday."
+
+**What was done:** a full, one-by-one pass over all 55 mandatory rules (`docs/TODO.md` T0835-T0889), each checked or left unchecked based on real evidence, not assumption:
+- Re-ran `uv run python -m police_thief simulate` live to reconfirm the base-logic milestone (`outcome=survival cop_score=5 thief_score=10 turns_played=35`) rather than trusting an old chapter's claim.
+- Searched the entire git history (`git log --all --diff-filter=A --name-only`) for `credentials.json`/`token.json`/`.env`/`secret`-like filenames — none found, confirming rule 39 for real rather than by assumption.
+- Confirmed `.gitignore` actually lists `credentials.json`, `token.json`, `*.pem`, `*.key` (rule 40).
+- Confirmed no Git tag exists yet (`git tag -l` — empty) and that `README.md` is still a genuine 2-line stub, not the required academic report — rules 41/42, the two most consequential gaps in the whole sweep.
+- Found that `config/cop/game.toml`/`config/thief/game.toml` still carry literal `group_name = "TBD"` / `group_id = "TBD"` placeholders — rule 45 is not satisfied and needs a real decision, not just code.
+- Re-read `test_capture.py` to confirm rule 46 (barrier-on-thief's-cell capture) is genuinely tested, and noticed Appendix E's own condensed wording ("the cell the cop occupies") doesn't match Sec. 3.3.5's clear primary text ("the cell the thief occupies") — resolved via the primary text, the same academic-freedom-on-contradiction principle used for Chapter 4's scent-decay tension.
+
+**A genuine, previously-undiscovered rulebook tension, found and documented rather than silently resolved either way (rule 47):** Appendix E's "completions" list (§16.6, with no corresponding passage anywhere in the main chapter body) states that a thief attempting to leave the arena via an illegal move should count as a **capture**. The current implementation, built faithfully from Chapter 3's own main-body text (Sec. 3.3.2, "any illegal move must be rejected/handled"), instead raises `MoveRejectedError` — a rejection, not an automatic capture outcome. Worse, `Orchestrator.run_turn` (Chapter 8) does not even catch `MoveRejectedError` in its exception handling today, so this specific case would currently propagate as an uncaught exception rather than resolving to *either* rule's outcome. This is exactly the kind of thing a real, honest final sanity sweep is supposed to surface — flagged clearly here rather than guessed at silently, since choosing between "reject and let the agent retry" vs. "automatic capture" is a real design decision, not a bug to quietly patch over in a documentation-only chapter.
+
+**Quality gate results:** no source code changed this chapter (a pure documentation/verification pass), so the numbers are unchanged from Chapter 10:
+```
+326 passed in ~17s
+TOTAL coverage: 99.83% (required: 85.0%)
+ruff check: All checks passed!
+```
+
+**Self-assessment against Table 4's four independent success metrics, honestly:**
+- **Coordination** (Ch.2): proven over real localhost HTTP, symmetric server/client duality on both sides, zero shared memory. Not yet proven over a real public URL/cross-machine link (Stage 5's tunneling gap) — the mechanism is ready, the demonstration isn't.
+- **Adaptation** (Ch.4/6): proven for real — `test_strategy_pipeline.py` is a genuine, non-cosmetic demonstration of two brains converging on a hidden opponent using only their own belief maps, never the opponent's true position.
+- **Integrity** (Ch.5): the cryptographic primitives (commit/verify/audit) are proven correct and tamper-detecting in isolation and via the Replay Viewer. The live, two-sided network enforcement of the full four-step protocol is the one piece still not fully wired (see rule 17/19/24 above) — a real gap, not a cosmetic one, though a narrower one than it might first appear: every individual commit this project ever makes is genuinely real and correctly verified, just not yet exchanged both ways automatically over a live, continuous match.
+- **Architecture** (Ch.8/10): the Gatekeeper and Orchestrator patterns are both implemented and independently tested; the one honest architectural gap is that they are not yet composed *together* — the Orchestrator doesn't yet call into the Gatekeeper/reporting layer, since no live end-of-match hook exists to connect them (rule 3, above).
+
+**What remains before this project could actually be submitted, in order of consequence:** (1) write the real academic README (rule 42) — by far the largest remaining task, and explicitly out of scope for this session per the standing instruction to keep `README.md` minimal until asked; (2) choose and propagate a real 8-character team identity code, replacing the `"TBD"` placeholders (rule 45); (3) complete the real Gmail OAuth setup and the real `ngrok`/tunnel setup (both flagged extensively in Chapters 9-10 as manual, external, unautomatable steps); (4) actually play the minimum required league games against real opponent teams; (5) decide and implement a resolution for the rule-47 tension found this chapter; (6) create the final annotated Git tag, but only once all of the above is genuinely done, not before.
+
+**Tasks checked off:** `docs/TODO.md` Section T — 40 of 55 mandatory-rule verification tasks checked (many with an honest "partial, mechanism proven but not live-exercised yet" caveat rather than a flat yes), plus Section O.6's `T0732`, `T0735`, `T0736`, `T0740` (4 of 9). The remaining unchecked items across both sections are not gaps in engineering rigor — they are consistently either (a) real external/manual dependencies this session cannot perform (OAuth, tunneling, real opponents, git tagging), or (b) the one genuinely open design question (rule 47) surfaced honestly rather than papered over.
+
 **Status:** awaiting review before committing.

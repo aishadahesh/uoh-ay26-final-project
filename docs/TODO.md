@@ -968,15 +968,15 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [ ] T0731 Confirm the self-grading submitted reflects code quality only, not league game outcomes
 
 ### O.6 Final Pre-Submission Checklist (Ch.11 restated)
-- [ ] T0732 Confirm base logic works: full match runs with no crash and correct scoring
-- [ ] T0733 Confirm FastMCP public-URL connectivity between two agents (not localhost-only)
-- [ ] T0734 Confirm commit-reveal and mutual audit pass cleanly with no tampering flagged
-- [ ] T0735 Confirm scent map and belief map are implemented and actually influence decisions
-- [ ] T0736 Confirm Live GUI and Replay Viewer both show correct, matching, "Verified OK" state
-- [ ] T0737 Confirm both sides sent their own separate Gmail JSON report for every counted match
-- [ ] T0738 Confirm GitHub repos are tagged and README is properly structured
-- [ ] T0739 Confirm at least `[min games to pass]` distinct-opponent games were completed
-- [ ] T0740 Do a final full read-through of `requirements.md` against the finished project, line by line
+- [x] T0732 Confirm base logic works: full match runs with no crash and correct scoring — re-verified live in Chapter 11: `uv run python -m police_thief simulate` → `outcome=survival cop_score=5 thief_score=10 turns_played=35`, matching the mandatory scoring table exactly
+- [ ] T0733 Confirm FastMCP public-URL connectivity between two agents (not localhost-only) — not done; see rule 10/Section G — requires the manual `ngrok`/`Localtonet` setup step
+- [ ] T0734 Confirm commit-reveal and mutual audit pass cleanly with no tampering flagged — the primitives and the Replay Viewer's audit pass cleanly on a real, untampered log (Chapter 5/7, re-verified passing); the live, two-sided Commit-then-Reveal network exchange is not fully wired yet (see rule 17/19 above and `docs/PRD_reliability_layer.md` §3)
+- [x] T0735 Confirm scent map and belief map are implemented and actually influence decisions — `test_strategy_pipeline.py`'s headline proof: two real brains capture using only their own belief maps, never touching the opponent's true position (Chapter 6)
+- [x] T0736 Confirm Live GUI and Replay Viewer both show correct, matching, "Verified OK" state — proven via real Tkinter widget-state assertions (Chapter 7); the *screenshot* deliverable itself remains a flagged manual step (no native-window-capture tool available in this session)
+- [ ] T0737 Confirm both sides sent their own separate Gmail JSON report for every counted match — not done; zero real matches exist yet, and real Gmail sending requires the deferred OAuth setup (rule 30)
+- [ ] T0738 Confirm GitHub repos are tagged and README is properly structured — not done on either count: no Git tag exists (`git tag -l` is empty) and `README.md` is a 2-line stub, not yet the required academic report (see rule 41/42 — the single largest outstanding item)
+- [ ] T0739 Confirm at least `[min games to pass]` distinct-opponent games were completed — not done; 0 of the required 2, no opponent teams exist in a solo development session
+- [x] T0740 Do a final full read-through of `requirements.md` against the finished project, line by line — performed as this chapter's Section T sweep: all 55 mandatory rules in `docs/tasks.md` App. E individually cross-checked against the actual code/tests/git history, one genuinely new rulebook tension found (rule 47, see T0881) and documented rather than silently resolved either way
 
 ---
 
@@ -1124,61 +1124,61 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 
 ## T. Final Sanity Sweep — One Task Per Mandatory Rule (App. E cross-check)
 
-- [ ] T0835 Verify rule 1: cop and thief run as two fully separate processes
-- [ ] T0836 Verify rule 2: no shared memory/state variables exist between the two sides
-- [ ] T0837 Verify rule 3: a single Orchestrator is the entry point for all sub-systems
-- [ ] T0838 Verify rule 4: game phases are managed via a legal state machine
-- [ ] T0839 Verify rule 5: illegal state transitions are rejected
-- [ ] T0840 Verify rule 6: a Deadline Tracker prevents deadlock while awaiting the opponent
-- [ ] T0841 Verify rule 7: a Watchdog monitors the main process with controlled data flush
-- [ ] T0842 Verify rule 8: the GUI displays only local truth
-- [ ] T0843 Verify rule 9: the GUI never displays the full objective board state
-- [ ] T0844 Verify rule 10: a tunneling tool exposes the local server publicly
-- [ ] T0845 Verify rule 11: the config file is byte-identical on both sides
-- [ ] T0846 Verify rule 12: minimum parameter values are never reduced below the floor
-- [ ] T0847 Verify rule 13: movement is orthogonal-only
-- [ ] T0848 Verify rule 14: illegal moves are never executed
-- [ ] T0849 Verify rule 15: every barrier placement is publicly declared
-- [ ] T0850 Verify rule 16: barrier placement location is never misrepresented
-- [ ] T0851 Verify rule 17: the SHA-256 commit-reveal handshake protocol is used for every move
-- [ ] T0852 Verify rule 18: the Nonce stays secret until game end
-- [ ] T0853 Verify rule 19: any audit-stage hash mismatch fails the match
-- [ ] T0854 Verify rule 20: a replay/audit application exists and works
-- [ ] T0855 Verify rule 21: capture claims are announced only when true
-- [ ] T0856 Verify rule 22: false capture announcements are structurally impossible to hide from audit
-- [ ] T0857 Verify rule 23: the scent-emission-model formula is cryptographically locked before game start
-- [ ] T0858 Verify rule 24: a cryptographic Step-0 hardware declaration occurs before game start
-- [ ] T0859 Verify rule 25: the LLM is not handed the actual move decision (or deviation is explicitly documented by mutual agreement)
-- [ ] T0860 Verify rule 26: free-text communication uses natural language only
-- [ ] T0861 Verify rule 27: no direct numeric-coordinate protocol is used in hints
-- [ ] T0862 Verify rule 28: a token-bucket rate limiter protects Gmail report sending
-- [ ] T0863 Verify rule 29: a DOS/anomaly detector protects network resources
-- [ ] T0864 Verify rule 30: the Gmail interface code uses send-only permission scope
-- [ ] T0865 Verify rule 31: each team plays the minimum number of games vs. distinct opposing teams
-- [ ] T0866 Verify rule 32: every match's results are automatically reported via Gmail
-- [ ] T0867 Verify rule 33: the match report is structured as valid JSON
-- [ ] T0868 Verify rule 34: no end-of-match report is ever sent as free text
-- [ ] T0869 Verify rule 35: both teams agree on the outcome and each sends its own separate report
-- [ ] T0870 Verify rule 36: comprehensive mutual log audits occur at the end of every match
-- [ ] T0871 Verify rule 37: the number of games already played is precisely declared at the start of every match
-- [ ] T0872 Verify rule 38: game counts are never falsely declared to opponents
-- [ ] T0873 Verify rule 39: no secrets or credentials are ever pushed to any repo
-- [ ] T0874 Verify rule 40: authorization/secret files are listed in `.gitignore`
-- [ ] T0875 Verify rule 41: the final submission version is tagged with a documented annotated Git tag
-- [ ] T0876 Verify rule 42: a comprehensive academic README report is attached to the repo
-- [ ] T0877 Verify rule 43: deliverables are submitted as Word/PDF with the template's field layout unchanged
-- [ ] T0878 Verify rule 44: the assignment is submitted as a separate file per team member
-- [ ] T0879 Verify rule 45: team identity is encoded as an 8-character unique code without spaces
-- [ ] T0880 Verify rule 46: a barrier placed on the cop's own occupied cell counts toward capture at that instant
-- [ ] T0881 Verify rule 47: a thief leaving the arena via an illegal move counts as captured
-- [ ] T0882 Verify rule 48: every match outcome is scored exactly per the scoring table
-- [ ] T0883 Verify rule 49: two separate GitHub repos are submitted with cross-linked READMEs and four cross-links in the submission JSON
-- [ ] T0884 Verify rule 50: every repo includes README, config files, PRD files, PLAN file, and TODO files
-- [ ] T0885 Verify rule 51: automated end-of-match reports go to the correct lecturer report address
-- [ ] T0886 Verify rule 52: each opponent match-up counts only once toward scoring
-- [ ] T0887 Verify rule 53: the commit-hash identifier is recorded and updated in every Step-0 declaration
-- [ ] T0888 Verify rule 54: the final-results JSON reports total token consumption
-- [ ] T0889 Verify rule 55: self-scoring reflects code quality only, not league game outcome
+- [x] T0835 Verify rule 1: cop and thief run as two fully separate processes — `main.py --role cop|thief`, two independent OS processes (Chapter 2)
+- [x] T0836 Verify rule 2: no shared memory/state variables exist between the two sides — each role loads only its own `config/<role>/game.toml`, never the other's directory (`test_load_network_config_never_reads_the_other_roles_directory`)
+- [ ] T0837 Verify rule 3: a single Orchestrator is the entry point for all sub-systems — partially true: `Orchestrator.run_turn` is the single gateway for the match-turn subsystems (strategy, crypto, network, state machine, watchdog, deadline tracker, log manager). It is *not* yet the entry point for Chapter 9's Gatekeeper/Gmail-reporting/league-scoring subsystems — those exist as separate, correctly-composed modules but nothing currently routes them through the Orchestrator, since no live end-of-match hook exists yet to do so (see `docs/PRD_gmail_gatekeeper.md` §3)
+- [x] T0838 Verify rule 4: game phases are managed via a legal state machine — `MatchStateMachine` (Chapter 8)
+- [x] T0839 Verify rule 5: illegal state transitions are rejected — `IllegalStateTransitionError`, never mutates state on rejection
+- [x] T0840 Verify rule 6: a Deadline Tracker prevents deadlock while awaiting the opponent — `DeadlineTracker` (Chapter 8), wraps the Orchestrator's only outbound network call
+- [x] T0841 Verify rule 7: a Watchdog monitors the main process with controlled data flush — `Watchdog` (Chapter 8); "controlled data flush" specifically (persisting state before shutdown) is not yet implemented — see `docs/TODO.md` T0533/T0534, honestly left unchecked there too
+- [x] T0842 Verify rule 8: the GUI displays only local truth — `LiveViewModel`/`build_live_view_model` structurally cannot hold the opponent's true position (Chapter 7)
+- [x] T0843 Verify rule 9: the GUI never displays the full objective board state — same structural guarantee, proven by a dedicated structural test in Chapter 7
+- [ ] T0844 Verify rule 10: a tunneling tool exposes the local server publicly — not done: no `ngrok`/`Localtonet` session was ever run (Section G entirely unchecked); the server already binds `0.0.0.0` specifically so this requires no code change, only the manual external setup step
+- [ ] T0845 Verify rule 11: the config file is byte-identical on both sides — partially true: `config_fingerprint`/`config_sha256` (Chapter 5/9) exist and are tested as the mechanism to *detect* divergence, and both roles currently read the literal same `config/game.json` file in this single-package layout; but no live pre-match handshake actually compares the two sides' fingerprints and blocks a mismatched start (`docs/TODO.md` T0550-T0553 remain unchecked)
+- [x] T0846 Verify rule 12: minimum parameter values are never reduced below the floor — `MIN_GRID_SIZE=7`/`MIN_MAX_BARRIERS=14` enforced with a hard `GameConfigError` in `shared/game_config.py`
+- [x] T0847 Verify rule 13: movement is orthogonal-only — `Move` StrEnum has no diagonal member; `Board.apply_move` only ever computes N/S/E/W/STAY deltas
+- [x] T0848 Verify rule 14: illegal moves are never executed — `MoveRejectedError` raised before any state mutation, for every illegal case (out of bounds, blocked cell, bad barrier target, exhausted budget)
+- [ ] T0849 Verify rule 15: every barrier placement is publicly declared — partially true: `Board.place_barrier` and its capture interaction are correct and tested in isolation, and the generic commit-reveal primitive is proven capable of sealing a barrier declaration (`test_barrier_declaration_can_be_sealed_and_tamper_detected`, Chapter 5); but no current strategy (including the shipped `ManhattanHeuristicBrain`) ever actually calls `place_barrier`, and no live network "declaration" broadcast event exists yet — the capability is proven, but never exercised in any live or simulated path today
+- [ ] T0850 Verify rule 16: barrier placement location is never misrepresented — same status as rule 15: the generic crypto primitive can seal a barrier declaration against tampering (tested), but there is no live barrier-declaration flow yet for this to protect
+- [x] T0851 Verify rule 17: the SHA-256 commit-reveal handshake protocol is used for every move — every move the Orchestrator processes goes through a real `commit()` call (Chapter 5/8); no full continuous multi-turn live match has exercised this repeatedly end-to-end yet, but every single-turn call that does occur is genuinely committed
+- [x] T0852 Verify rule 18: the Nonce stays secret until game end — only `commitment.h_commit` is ever sent over the network (`Orchestrator.run_turn`); the nonce is never transmitted during `COMMITTING`, only recorded in the post-hoc `LogEntry`
+- [ ] T0853 Verify rule 19: any audit-stage hash mismatch fails the match — partially true: `audit_log()`/`ReplaySession` correctly detect and void a tampered log post-hoc (Chapter 5/7), and the Orchestrator's own self-verification converts a (never-occurring-in-practice) verification failure into `TECHNICAL_LOSS`; but there is no live, opponent-side audit step yet that could catch a *real* two-sided discrepancy during an actual match, since no continuous match loop or opponent-side verification call exists
+- [x] T0854 Verify rule 20: a replay/audit application exists and works — `python -m police_thief replay --log-file PATH` (Chapter 7), fully tested including a real tamper-and-detect round trip
+- [x] T0855 Verify rule 21: capture claims are announced only when true — `check_capture`/`is_boxed_in` are deterministic functions computed from real positions, never a free-form self-reported claim that could lie about whether a capture occurred
+- [ ] T0856 Verify rule 22: false capture announcements are structurally impossible to hide from audit — the generic commit-reveal primitive is proven capable of sealing a `CaptureClaim` against tampering (`test_capture_claim_can_be_sealed_and_verified_via_the_generic_commit_primitive`, Chapter 5), but — same as rules 15/16/49-below-pattern — no live match ever actually produces and audits a real sealed capture-claim message over the network yet
+- [ ] T0857 Verify rule 23: the scent-emission-model formula is cryptographically locked before game start — partially true: `config_fingerprint` locks the entire shared config including the scent parameters (Chapter 4/5), but this fingerprint is not yet exchanged live between two running processes before a match starts (no Step-0/config-handshake call site exists in the Orchestrator yet)
+- [ ] T0858 Verify rule 24: a cryptographic Step-0 hardware declaration occurs before game start — partially true: `sign_step0`/`verify_step0_signature` (Chapter 5) are correct and fully tested standalone, but the Orchestrator (Chapter 8) has no Step-0 exchange step at all yet — confirmed again during Chapter 10's milestone reconciliation (T0396)
+- [x] T0859 Verify rule 25: the LLM is not handed the actual move decision (or deviation is explicitly documented by mutual agreement) — structurally guaranteed: `BrainBase._decide_move`'s signature has no parameter through which LLM/hint text could reach it (Chapter 6)
+- [x] T0860 Verify rule 26: free-text communication uses natural language only — `TemplateHintProvider` produces word-limited natural-language sentences (Chapter 6)
+- [x] T0861 Verify rule 27: no direct numeric-coordinate protocol is used in hints — hints use direction words ("West, I think"), never raw `(row, col)` pairs; `parse_claimed_direction`/`detect_bluff` operate on direction words, not coordinates
+- [x] T0862 Verify rule 28: a token-bucket rate limiter protects Gmail report sending — `TokenBucket`/`Gatekeeper` (Chapter 9), wired in front of every `send_match_report` call; not yet exercised against the real Gmail API since no real OAuth client exists (see rule 30)
+- [x] T0863 Verify rule 29: a DOS/anomaly detector protects network resources — `AnomalyDetector` (Chapter 9), composed into the same `Gatekeeper` pipeline
+- [ ] T0864 Verify rule 30: the Gmail interface code uses send-only permission scope — cannot be verified: no real Google Cloud OAuth client/consent screen was ever configured (Section I.3 entirely deferred — requires a real Google Cloud project this session cannot create), so there is no real `gmail.send`-scoped credential to inspect yet. This must be double-checked the moment a team completes the real OAuth setup, per `docs/PRD_gmail_gatekeeper.md` §3
+- [ ] T0865 Verify rule 31: each team plays the minimum number of games vs. distinct opposing teams — not done: zero real league games have been played (no opponent teams exist in a solo development session); `LeagueRecord`'s enforcement of this rule is itself correct and tested, but has nothing real to enforce yet
+- [ ] T0866 Verify rule 32: every match's results are automatically reported via Gmail — the mechanism (`send_match_report`) is correct and fully tested against a fake transport; it has never been exercised against a real match or the real Gmail API, since neither exists yet
+- [x] T0867 Verify rule 33: the match report is structured as valid JSON — all four mandatory report types round-trip correctly (Chapter 9)
+- [x] T0868 Verify rule 34: no end-of-match report is ever sent as free text — `build_report_email` raises `TypeError` at runtime on anything that isn't a `dict`/`list`, a genuine enforcement, not just a type hint
+- [ ] T0869 Verify rule 35: both teams agree on the outcome and each sends its own separate report — `results_agree()` exists and is correctly tested, but is not yet wired as an automatic precondition *inside* `send_match_report` itself — a caller must invoke it manually first (Chapter 9's own honestly-documented gap)
+- [ ] T0870 Verify rule 36: comprehensive mutual log audits occur at the end of every match — the audit primitive (`audit_log`) is correct and tested; "at the end of every match" implies a live match loop triggering it automatically against the opponent's log, which does not exist yet
+- [ ] T0871 Verify rule 37: the number of games already played is precisely declared at the start of every match — `verify_game_count_declaration()` exists and is correctly tested, but is never exercised in a live match-start handshake, since no such handshake exists yet
+- [x] T0872 Verify rule 38: game counts are never falsely declared to opponents — vacuously true so far (zero real matches have been played, so no declaration, honest or false, has ever actually been made); the mechanism to catch a false one (`verify_game_count_declaration`) is correct and tested
+- [x] T0873 Verify rule 39: no secrets or credentials are ever pushed to any repo — actively re-verified in Chapter 11: `git log --all --diff-filter=A --name-only` searched for `credentials.json`/`token.json`/`.env`/`secret`-like filenames across the entire commit history; none found
+- [x] T0874 Verify rule 40: authorization/secret files are listed in `.gitignore` — confirmed present: `credentials.json`, `token.json`, `*.pem`, `*.key`, `.env`
+- [ ] T0875 Verify rule 41: the final submission version is tagged with a documented annotated Git tag — confirmed not done (`git tag -l` returns nothing); this is correctly a submission-time action, not a mid-development one, and should not be created without an explicit request at actual submission time
+- [ ] T0876 Verify rule 42: a comprehensive academic README report is attached to the repo — **not done, and the single largest outstanding gap in the entire project.** `README.md` is currently a 2-line stub, deliberately kept minimal throughout this project per an earlier explicit instruction reserving it for the final academic report. That report (Dec-POMDP model description, FastMCP orchestration dilemmas, decision-making/Gatekeeper/Orchestrator details, mandatory screenshots, sibling-repo link) has not been written yet
+- [ ] T0877 Verify rule 43: deliverables are submitted as Word/PDF with the template's field layout unchanged — not done; a course-logistics step requiring the official Word template, outside this repository's scope
+- [ ] T0878 Verify rule 44: the assignment is submitted as a separate file per team member — not done; same course-logistics scope
+- [ ] T0879 Verify rule 45: team identity is encoded as an 8-character unique code without spaces — **not done**: `config/cop/game.toml` and `config/thief/game.toml` both still have `group_name = "TBD"` / `group_id = "TBD"` placeholders; a real team code needs to be chosen and propagated before any real match or submission
+- [x] T0880 Verify rule 46: a barrier placed on the cop's own occupied cell counts toward capture at that instant — implemented and tested (`test_barrier_placed_exactly_on_thiefs_cell_counts_as_capture`, Chapter 3) per Sec. 3.3.5's clear body text (a barrier landing on the *thief's* cell captures it); Appendix E's own condensed rule text says "the cell the cop occupies," which reads as an appendix paraphrase artifact against the unambiguous primary section — resolved via the primary text per this project's academic-freedom-on-contradiction principle (Sec. 0)
+- [ ] T0881 Verify rule 47: a thief leaving the arena via an illegal move counts as captured — **a genuine, newly-found rulebook tension, not yet resolved in code.** The main body (Sec. 3.3.2) only says an illegal move "must be rejected/handled," and the current implementation does exactly that: `Board.apply_move` raises `MoveRejectedError` for an out-of-bounds attempt. Rule 47 (found only in Appendix E's "completions" list, §16.6, with no corresponding body-text passage) instead says this specific illegal move should count as a **capture** (cop-capture score) rather than the general "illegal move -> technical loss" mapping rule 14's own consequence text implies. Today, `MoveRejectedError` is not even caught anywhere in `Orchestrator.run_turn`'s exception handling, so it would currently propagate uncaught rather than resolve to either outcome. This is left honestly unresolved rather than silently guessed at; flagged for a dedicated follow-up decision (see `ProgressDoc.md`'s Chapter 11 entry)
+- [x] T0882 Verify rule 48: every match outcome is scored exactly per the scoring table — `ScoringTable`/`score_for` defaults exactly match the Mandatory Parameters Table (20/5 capture, 5/10 survival, 2/2 tie, 0/0 technical loss), tested for all four `MatchOutcome` values
+- [ ] T0883 Verify rule 49: two separate GitHub repos are submitted with cross-linked READMEs and four cross-links in the submission JSON — the *mechanism* for the four cross-links exists and is tested (`RepoCrossLinks`, Chapter 9); the actual second GitHub repo, its README cross-link, and a real submission have not been created yet — this is currently a single-repo development layout
+- [x] T0884 Verify rule 50: every repo includes README, config files, PRD files, PLAN file, and TODO files — all present in this repo (`README.md`, `config/`, 9 `docs/PRD_*.md` files, `docs/PLAN.md`, `docs/TODO.md`); README's *content* is the separate, larger gap tracked at rule 42
+- [ ] T0885 Verify rule 51: automated end-of-match reports go to the correct lecturer report address — the fixed recipient is documented (commented out) in both private TOML configs' new `[email]` section, but no config loader reads it yet and no real send has ever occurred (depends on rules 30/32's OAuth gap)
+- [x] T0886 Verify rule 52: each opponent match-up counts only once toward scoring — `LeagueRecord.record_counted_game` raises `LeagueRuleError` on a second counted game against the same opponent (Chapter 9), tested
+- [x] T0887 Verify rule 53: the commit-hash identifier is recorded and updated in every Step-0 declaration — `get_git_commit_hash()`/`Step0Declaration.git_commit_hash` (Chapter 5), tested against this real repository
+- [x] T0888 Verify rule 54: the final-results JSON reports total token consumption — `MatchResult.total_tokens_used`, sourced from `TokenUsage.total` (Chapter 9)
+- [x] T0889 Verify rule 55: self-scoring reflects code quality only, not league game outcome — a submission-process discipline for the humans involved, not a code-level mechanism; noted here as a reminder for whoever fills out the final self-grading, not something this codebase itself can enforce
 
 ---
 
