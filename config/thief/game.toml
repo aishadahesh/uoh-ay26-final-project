@@ -12,3 +12,12 @@ group_id = "TBD"
 my_port = 8802
 opponent_url = "http://127.0.0.1:8801/mcp"
 turn_timeout_seconds = 30
+
+# [strategy] -- optional: point at YOUR brain subclass (else the shipped
+# ManhattanHeuristicBrain heuristic runs -- see docs/PLAN.md ADR-010).
+# thief_class = "my_team.strategy:MyThiefBrain"
+
+# [trash_talk] -- optional: HOW the verbal bluff/hint text is produced.
+# The MOVE decision is always pure Python (Sec. 6.4.1) -- this only
+# affects hint phrasing. "template" (default) costs zero tokens.
+# provider = "template"

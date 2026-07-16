@@ -2,18 +2,22 @@
 
 Chapter 2's mandatory environment-separation rule (docs/tasks.md Sec. 3,
 "Total Separation of Working Environments") requires each role to load its
-own config directory (config/police/ vs config/thief/) — never a config
-shared in memory with the other role. This module loads only the [network]
-section needed for Chapter 2; the fuller shared, signed config/game.json
-format (App. B) is introduced once Chapter 3's board parameters exist.
+own config directory (config/cop/ vs config/thief/) — never a config
+shared in memory with the other role. This module loads the [network]
+section (Chapter 2) and the [strategy] section (Chapter 6, Sec. 6.1.2);
+the fuller shared, signed config/game.json format (App. B) is a separate
+module (shared/game_config.py).
 """
 
 from __future__ import annotations
 
+import importlib
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+from police_thief.domain.strategy.brain_base import BrainBase
+from police_thief.domain.strategy.manhattan_brain import ManhattanHeuristicBrain
 from police_thief.shared.constants import AgentRole
 
 
@@ -55,3 +59,33 @@ def load_network_config(role: AgentRole, config_root: Path) -> NetworkConfig:
         )
     except KeyError as exc:
         raise ConfigError(f"malformed config at {path}: missing key {exc}") from exc
+
+
+def _load_toml(role: AgentRole, config_root: Path) -> dict:
+    path = config_dir_for(role, config_root) / "game.toml"
+    if not path.is_file():
+        raise ConfigError(f"missing per-peer config file: {path}")
+    with path.open("rb") as f:
+        return tomllib.load(f)
+
+
+def load_strategy_class(role: AgentRole, config_root: Path) -> type[BrainBase]:
+    """Load role's own `[strategy]` `{role}_class` key (Sec. 6.1.2).
+
+    E.g. for role=THIEF, reads `thief_class = "my_team.strategy:MyBrain"`
+    from config/thief/game.toml -- never the other role's key or file.
+    Falls back to the built-in ManhattanHeuristicBrain (docs/PLAN.md
+    ADR-010's chosen baseline) if the key is absent or commented out.
+    """
+    data = _load_toml(role, config_root)
+    dotted_path = data.get("strategy", {}).get(f"{role.value}_class")
+    if dotted_path is None:
+        return ManhattanHeuristicBrain
+    module_name, _, class_name = dotted_path.rpartition(":")
+    if not module_name or not class_name:
+        raise ConfigError(f"strategy class must be 'module:Class', got {dotted_path!r}")
+    module = importlib.import_module(module_name)
+    brain_class = getattr(module, class_name)
+    if not (isinstance(brain_class, type) and issubclass(brain_class, BrainBase)):
+        raise ConfigError(f"{dotted_path!r} is not a BrainBase subclass")
+    return brain_class
