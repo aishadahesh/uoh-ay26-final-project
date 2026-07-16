@@ -41,7 +41,6 @@ omit = [
     "src/police_thief/main.py",
     "src/police_thief/__main__.py",
     "*/tests/*",
-    "src/police_thief/gui/*",
 ]
 
 [tool.coverage.report]

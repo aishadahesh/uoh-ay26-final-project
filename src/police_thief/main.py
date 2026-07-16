@@ -4,6 +4,9 @@ Commands:
   serve --role cop|thief   Start this peer's FastMCP server (Chapter 2).
   simulate                 Run a single-process local match with placeholder
                            policies and print the result (Chapter 3).
+  replay --log-file PATH   Launch the Replay Viewer against a saved match
+                           log (Chapter 7) -- runs standalone, independent
+                           of any live match code (docs/tasks.md T0437).
 
 `serve` is the concrete realization of Chapter 2's "Total Separation of
 Working Environments" rule: one shared codebase (docs/PLAN.md ADR-011), but
@@ -16,9 +19,12 @@ capture/scoring end-to-end against the single shared config/game.json.
 from __future__ import annotations
 
 import argparse
+import tkinter as tk
 from pathlib import Path
 
+from police_thief.domain.replay import ReplaySession, load_log
 from police_thief.domain.simulation import run_local_match
+from police_thief.gui.replay_gui import ReplayGUI
 from police_thief.services.mcp_server import build_peer_server, run_peer_server
 from police_thief.shared.config import load_network_config
 from police_thief.shared.constants import AgentRole
@@ -29,7 +35,7 @@ DEFAULT_GAME_CONFIG = DEFAULT_CONFIG_ROOT / "game.json"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse the `serve`/`simulate` subcommands and their options."""
+    """Parse the `serve`/`simulate`/`replay` subcommands and their options."""
     parser = argparse.ArgumentParser(prog="police_thief")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -39,6 +45,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     simulate = subparsers.add_parser("simulate", help="Run a local placeholder-policy match")
     simulate.add_argument("--game-config", type=Path, default=DEFAULT_GAME_CONFIG)
+
+    replay = subparsers.add_parser("replay", help="Launch the Replay Viewer on a saved match log")
+    replay.add_argument("--log-file", required=True, type=Path)
 
     return parser.parse_args(argv)
 
@@ -59,13 +68,23 @@ def _simulate(args: argparse.Namespace) -> None:
     )
 
 
+def _replay(args: argparse.Namespace) -> None:
+    session = ReplaySession(load_log(args.log_file))
+    root = tk.Tk()
+    root.title(f"Replay Viewer - {args.log_file.name}")
+    ReplayGUI(root, session)
+    root.mainloop()
+
+
 def main(argv: list[str] | None = None) -> None:
-    """Dispatch to `serve` or `simulate` based on the parsed subcommand."""
+    """Dispatch to `serve`, `simulate`, or `replay` based on the parsed subcommand."""
     args = parse_args(argv)
     if args.command == "serve":
         _serve(args)
     elif args.command == "simulate":
         _simulate(args)
+    elif args.command == "replay":
+        _replay(args)
 
 
 if __name__ == "__main__":
