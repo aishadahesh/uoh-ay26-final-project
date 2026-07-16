@@ -253,4 +253,37 @@ ruff check: All checks passed!
 
 **Tasks checked off:** `docs/TODO.md` Section I.1-I.2 — 25 of 37 tasks. The rest are either deferred to Chapter 8 (state machine wiring, event log, scoreboard, threading), deliberately out of scope by design (manual input controls), or the three screenshot tasks noted above.
 
-**Status:** awaiting review before committing. Next up — Chapter 8 (Agent Architecture Design & Deep Reliability Mechanisms).
+**Status:** committed (4 commits: live view model, replay session, GUI wiring, tests + docs).
+
+---
+
+### Chapter 8 — Reliability Layer: Orchestrator, Legal State Machine, Deadline Tracker, Watchdog
+
+**What this chapter covers (`docs/tasks.md` §9, Section J of `docs/TODO.md`):** every prior chapter built a correct, independently-tested primitive, but nothing yet ran a turn end-to-end over the network with enforced legal sequencing. This chapter closes that gap with four pieces: a **legal state machine** making illegal sequencing (e.g. revealing before committing) a structural impossibility rather than a hoped-for convention; a **Deadline Tracker** bounding every individual network wait with retries, so "wait forever" becomes "fail after N seconds, then declare technical loss"; a **Watchdog** as the coarser-grained liveness monitor, detecting when the turn cadence itself has gone silent; and the **Orchestrator**, a single gateway class wiring all of the above together (plus Chapter 6's `BrainBase`, Chapter 5's `commit`/`verify`, Chapter 2's `send_move_async`, and a new `LogManager`) while itself containing zero decision-making or communication logic of its own.
+
+**What was implemented:**
+- `services/state_machine.py` — `MatchState` (`WAITING_FOR_OPPONENT`, `COMPUTING_MOVE`, `COMMITTING`, `AWAITING_REVEAL`, `VERIFYING`, `TECHNICAL_LOSS`), `MatchStateMachine` with an explicit `_TRANSITIONS` table; `transition()` raises `IllegalStateTransitionError` on any target not in the table, never mutating state on rejection. `TECHNICAL_LOSS` is reachable from all four non-terminal states and is itself terminal.
+- `services/deadline_tracker.py` — `DeadlineTracker(timeout_seconds, max_retries).call(make_awaitable)`, wrapping `asyncio.wait_for` with bounded retries; deliberately takes a zero-arg *factory*, not a bare coroutine, so each retry gets a genuinely fresh awaitable rather than crashing on "cannot reuse an already-awaited coroutine." Exhausting all attempts raises `DeadlineExceededError`.
+- `services/watchdog.py` — `Watchdog(timeout_seconds, on_timeout, clock)`; `heartbeat()`/`check()` compare elapsed time against threshold via an *injectable* clock (real `time.monotonic` in production, a hand-rolled `FakeClock` in tests) — the same "real in production, deterministic-fake in tests" pattern used for Step-0's hardware detection in Chapter 5. `on_timeout` fires exactly once even across repeated post-threshold checks.
+- `services/log_manager.py` — `LogManager` accumulating `LogEntry` objects turn-by-turn; `.entries` returns a defensive copy; `.save()` reuses Chapter 7's `save_log` rather than re-implementing file I/O.
+- `services/orchestrator.py` — `Orchestrator.run_turn(board, own_position, belief) -> TurnResult`, sequencing: heartbeat → `COMPUTING_MOVE` (calls `brain._decide_move` once) → `COMMITTING` (real `commit()`, sent over the network via `deadline_tracker.call(lambda: send_move_async(...))`) → `AWAITING_REVEAL` → `VERIFYING` (self-`verify()`) → log the entry → `WAITING_FOR_OPPONENT` → heartbeat. Any `DeadlineExceededError`/`PeerClientError`/internal verification failure is caught and converted to `MatchState.TECHNICAL_LOSS`.
+- `docs/PRD_reliability_layer.md` — the seventh per-mechanism PRD.
+- Tests: `test_state_machine.py`, `test_deadline_tracker.py`, `test_watchdog.py`, `test_log_manager.py` (unit), `tests/integration/test_orchestrator.py` (against a **real, separately-threaded local FastMCP server** — not mocked) — 36 new tests (272 total).
+
+**Quality gate results:**
+```
+272 passed in 16.31s
+TOTAL coverage: 99.77% (required: 85.0%)
+ruff check: All checks passed!
+```
+100% coverage on every file this chapter touches, including `orchestrator.py` itself.
+
+**An architectural gap finally closed, not just new code:** since Chapter 2, `MoveEnvelope.signed_move` had been documented as "becomes a real SHA-256 commitment in Chapter 5/6" but nothing had ever actually connected them — Chapters 5 and 6 built the crypto and strategy primitives correctly, but in isolation, with no caller wiring them to the network layer. `Orchestrator.run_turn` is that caller: `commitment.h_commit` (Ch.5) now flows directly into `send_move_async`'s `signed_move` argument (Ch.2), verified empirically against a real local FastMCP server in a background thread (the same pattern proven in Chapter 2's original HTTP round-trip test) — both the success path (full state cycle, one verifiable log entry, Watchdog never triggers) and the failure path (an unreachable opponent at `http://127.0.0.1:1/mcp` correctly drives the match to `TECHNICAL_LOSS`, log stays empty) were tested against real network conditions, not simulated ones.
+
+**One defensive branch closed via mocking, same discipline as Chapter 4/Chapter 6's unreachable-in-practice tests:** `commit()`/`verify()` are deterministic and always agree given matching arguments (which `run_turn` always supplies), so the Orchestrator's internal self-verification can never actually fail in practice — but `--cov-report=term-missing` flagged the `TechnicalLossError` branch as uncovered, and a genuinely untested defensive branch is a real gap, not a cosmetic one. Added one test patching `police_thief.services.orchestrator.verify` to return `False`, proving the Orchestrator reacts correctly (raises internally, converts to `TECHNICAL_LOSS`, logs nothing) rather than silently trusting an unverified commitment. This closed the suite's last coverage gap (99.66% → 99.77%, `orchestrator.py` 100%).
+
+**What was deliberately left undone, and why (full detail in `docs/PRD_reliability_layer.md` §3):** the Orchestrator drives exactly one turn per call — there is no continuous main game loop, no multi-turn/full-match driver, and no two-sided "both peers play each other live" harness yet, so a handful of Section J tasks are honestly left unchecked rather than faked: wiring the state machine to the GUI turn-banner (needs a live match entrypoint that doesn't exist), a full-match multi-turn integration test, `response_timeout_sec`/`watchdog_timeout_sec` config wiring (the real consumer is the not-yet-built entrypoint), `persist_state()`/`controlled_shutdown()`/a resume-after-shutdown path (nothing exists yet to persist or tear down), a continuous heartbeat cadence (today's heartbeat is turn-driven, not clock-driven), and a mutual-wait stress test (no two-sided driver exists yet to create a mutual-wait scenario). None of these were invented ahead of the chapters/entrypoint that will actually need them — the same incremental-layering discipline applied since Chapter 1.
+
+**Tasks checked off:** `docs/TODO.md` Section J — 20 of 32 tasks (J.1: 8/10, J.2: 7/10, J.3: 6/8, J.4: 2/10, J.5: 2/4), each unchecked item left with inline rationale rather than a silent gap.
+
+**Status:** awaiting review before committing.

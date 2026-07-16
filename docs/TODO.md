@@ -657,56 +657,56 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 ## J. Reliability Layer — Orchestrator, State Machine, Watchdog, Deadline Tracker
 
 ### J.1 Orchestrator (Gateway)
-- [ ] T0503 Design the single `Orchestrator` class as the sole entry point for all sub-systems
-- [ ] T0504 Wire the MCP connector module behind the Orchestrator (no direct external access from other modules)
-- [ ] T0505 Wire the Decision Module (strategy) behind the Orchestrator
-- [ ] T0506 Wire the Log Manager behind the Orchestrator
-- [ ] T0507 Wire the Deadline Tracker behind the Orchestrator
-- [ ] T0508 Wire the Watchdog behind the Orchestrator
-- [ ] T0509 Verify the Orchestrator itself contains no decision-making or communication business logic
-- [ ] T0510 Write unit test: replacing the Decision Module implementation requires no changes to the Orchestrator interface
-- [ ] T0511 Write architecture-review checklist: confirm no module calls another module directly, bypassing the Orchestrator
-- [ ] T0512 Document the Orchestrator's public interface (methods, expected inputs/outputs)
+- [x] T0503 Design the single `Orchestrator` class as the sole entry point for all sub-systems — `services/orchestrator.py`
+- [x] T0504 Wire the MCP connector module behind the Orchestrator (no direct external access from other modules) — `send_move_async` is only called from inside `run_turn`
+- [x] T0505 Wire the Decision Module (strategy) behind the Orchestrator — `run_turn` calls `brain._decide_move` exactly once per turn
+- [x] T0506 Wire the Log Manager behind the Orchestrator — `run_turn` records a `LogEntry` after successful self-verification
+- [x] T0507 Wire the Deadline Tracker behind the Orchestrator — the outbound commit send is wrapped in `deadline_tracker.call(...)`
+- [x] T0508 Wire the Watchdog behind the Orchestrator — `run_turn` heartbeats at turn start and turn end
+- [x] T0509 Verify the Orchestrator itself contains no decision-making or communication business logic — `run_turn` only sequences calls into `brain`/`commit`/`verify`/`send_move_async`/state machine; verified by inspection, no independent logic of its own
+- [ ] T0510 Write unit test: replacing the Decision Module implementation requires no changes to the Orchestrator interface — not written as a dedicated test; the integration tests only exercise `ManhattanHeuristicBrain`. The `BrainBase` ABC (Ch.6) structurally guarantees swappability, but a second-brain-through-Orchestrator test was not added
+- [ ] T0511 Write architecture-review checklist: confirm no module calls another module directly, bypassing the Orchestrator — not written as a formal checklist document
+- [x] T0512 Document the Orchestrator's public interface (methods, expected inputs/outputs) — via class/method docstrings and the `TurnResult` dataclass fields, not a separate doc
 
 ### J.2 Legal State Machine
-- [ ] T0513 Define the full state set: WAITING_FOR_OPPONENT, COMPUTING_MOVE, COMMITTING, AWAITING_REVEAL, VERIFYING, TECHNICAL_LOSS
-- [ ] T0514 Implement the transition table mapping each state to its legal successor states
-- [ ] T0515 Implement `transition(target)` raising/rejecting on any transition not in the table
-- [ ] T0516 Write unit test: every legal transition succeeds
-- [ ] T0517 Write unit test: every illegal transition attempt is rejected immediately
-- [ ] T0518 Write unit test: `TECHNICAL_LOSS` is correctly reachable from both `COMPUTING_MOVE` and `AWAITING_REVEAL` failure paths
-- [ ] T0519 Write unit test: `TECHNICAL_LOSS` is a terminal state (no further legal transitions out)
-- [ ] T0520 Wire the state machine's current state to the GUI turn-banner (Stage 7)
-- [ ] T0521 Write integration test: a full match cycles through the state machine correctly turn after turn
-- [ ] T0522 Write integration test: an opponent disconnect mid-`AWAITING_REVEAL` correctly drives the state machine to `TECHNICAL_LOSS` rather than hanging
+- [x] T0513 Define the full state set: WAITING_FOR_OPPONENT, COMPUTING_MOVE, COMMITTING, AWAITING_REVEAL, VERIFYING, TECHNICAL_LOSS
+- [x] T0514 Implement the transition table mapping each state to its legal successor states
+- [x] T0515 Implement `transition(target)` raising/rejecting on any transition not in the table
+- [x] T0516 Write unit test: every legal transition succeeds
+- [x] T0517 Write unit test: every illegal transition attempt is rejected immediately
+- [x] T0518 Write unit test: `TECHNICAL_LOSS` is correctly reachable from both `COMPUTING_MOVE` and `AWAITING_REVEAL` failure paths — parametrized across all four non-terminal states, a superset of the two named
+- [x] T0519 Write unit test: `TECHNICAL_LOSS` is a terminal state (no further legal transitions out)
+- [ ] T0520 Wire the state machine's current state to the GUI turn-banner (Stage 7) — deferred: the Orchestrator and `LiveGUI` (Ch.7) are not yet wired together; no live match entrypoint exists yet to drive the GUI from real turns
+- [ ] T0521 Write integration test: a full match cycles through the state machine correctly turn after turn — only single-turn integration tests exist (`test_orchestrator.py`); a multi-turn/full-match test would need a two-sided match driver, which doesn't exist yet
+- [ ] T0522 Write integration test: an opponent disconnect mid-`AWAITING_REVEAL` correctly drives the state machine to `TECHNICAL_LOSS` rather than hanging — the unreachable-opponent test covers failure during `COMMITTING` (connection refused before send completes), not a disconnect specifically timed mid-`AWAITING_REVEAL`
 
 ### J.3 Deadline Tracker
-- [ ] T0523 Implement per-outbound-request timestamp + deadline attachment
-- [ ] T0524 Implement deadline-expiry checking on every awaited response
-- [ ] T0525 Implement retry-on-expiry logic (bounded by `max_retries`)
-- [ ] T0526 Implement technical-loss/timeout declaration once retries are exhausted
-- [ ] T0527 Write unit test: a response arriving within the deadline is accepted normally
-- [ ] T0528 Write unit test: a response arriving after the deadline triggers retry or timeout handling, never an indefinite wait
-- [ ] T0529 Wire `response_timeout_sec` from config into the Deadline Tracker
-- [ ] T0530 Write integration test: simulated slow/no-response opponent triggers correct timeout behavior without hanging the process
+- [x] T0523 Implement per-outbound-request timestamp + deadline attachment — via `asyncio.wait_for(..., timeout=...)`, not an explicit timestamp field
+- [x] T0524 Implement deadline-expiry checking on every awaited response
+- [x] T0525 Implement retry-on-expiry logic (bounded by `max_retries`)
+- [x] T0526 Implement technical-loss/timeout declaration once retries are exhausted — raises `DeadlineExceededError`, which the Orchestrator catches and converts to `TECHNICAL_LOSS`
+- [x] T0527 Write unit test: a response arriving within the deadline is accepted normally
+- [x] T0528 Write unit test: a response arriving after the deadline triggers retry or timeout handling, never an indefinite wait
+- [ ] T0529 Wire `response_timeout_sec` from config into the Deadline Tracker — not done; `DeadlineTracker` is currently constructed directly with explicit values (by tests/callers), no code path reads `response_timeout_sec` out of `config/game.json` yet
+- [ ] T0530 Write integration test: simulated slow/no-response opponent triggers correct timeout behavior without hanging the process — the existing integration test uses an unreachable address (immediate connection refusal), not a live-but-slow-to-respond server, so the deadline-expiry path itself is only unit-tested, not integration-tested over real HTTP
 
 ### J.4 Watchdog
-- [ ] T0531 Implement a background heartbeat-monitoring process/thread independent of the main game loop
-- [ ] T0532 Implement `watchdog_check(last_heartbeat, timeout_sec)` comparing elapsed time to threshold
-- [ ] T0533 Implement `persist_state()` saving current game state to disk for later recovery
-- [ ] T0534 Implement `controlled_shutdown()` releasing MCP connections and closing logs cleanly
-- [ ] T0535 Wire `watchdog_timeout_sec` from config into the Watchdog
-- [ ] T0536 Write unit test: Watchdog returns ALIVE when heartbeats are timely
-- [ ] T0537 Write unit test: Watchdog returns SHUTDOWN and persists state when heartbeats stop arriving
-- [ ] T0538 Implement the main loop emitting a heartbeat signal on a regular cadence
-- [ ] T0539 Write integration test: deliberately freezing the main loop triggers Watchdog-initiated state persistence and shutdown
-- [ ] T0540 Implement a state-recovery/resume path that can reload persisted state after a controlled shutdown
+- [x] T0531 Implement a background heartbeat-monitoring process/thread independent of the main game loop — implemented as a passive, poll-based monitor (`check()`) rather than its own background thread; no independent main game loop exists yet for it to run alongside
+- [x] T0532 Implement `watchdog_check(last_heartbeat, timeout_sec)` comparing elapsed time to threshold — `Watchdog.check()`, using an injectable clock instead of a raw `last_heartbeat` parameter
+- [ ] T0533 Implement `persist_state()` saving current game state to disk for later recovery — not implemented; `Watchdog`'s `on_timeout` callback is a generic hook, but no state-persistence callback has been wired through it yet
+- [ ] T0534 Implement `controlled_shutdown()` releasing MCP connections and closing logs cleanly — not implemented; no such method exists on `Watchdog` or `Orchestrator`
+- [ ] T0535 Wire `watchdog_timeout_sec` from config into the Watchdog — not done, same gap as T0529
+- [x] T0536 Write unit test: Watchdog returns ALIVE when heartbeats are timely
+- [x] T0537 Write unit test: Watchdog returns SHUTDOWN and persists state when heartbeats stop arriving — covers the SHUTDOWN transition and the `on_timeout` callback firing; no actual state persistence exists yet to test (see T0533)
+- [ ] T0538 Implement the main loop emitting a heartbeat signal on a regular cadence — no continuous main game loop exists yet; the Orchestrator heartbeats once at the start and end of each `run_turn`, which is turn-driven, not cadence-driven
+- [ ] T0539 Write integration test: deliberately freezing the main loop triggers Watchdog-initiated state persistence and shutdown — deferred, depends on T0533/T0538 existing first
+- [ ] T0540 Implement a state-recovery/resume path that can reload persisted state after a controlled shutdown — deferred, depends on T0533
 
 ### J.5 Deadlock Prevention Review
-- [ ] T0541 Conduct a manual deadlock-risk review across all await points in the codebase
-- [ ] T0542 Confirm every await point has either a Deadline Tracker timeout or is bounded by the state machine
-- [ ] T0543 Write a stress test: simulate simultaneous mutual-wait conditions and confirm no permanent hang occurs
-- [ ] T0544 Document the deadlock-prevention design in the architecture section of the README
+- [x] T0541 Conduct a manual deadlock-risk review across all await points in the codebase — the only await points in the codebase are inside `Orchestrator.run_turn`'s single `deadline_tracker.call(...)` around `send_move_async`; reviewed by inspection
+- [x] T0542 Confirm every await point has either a Deadline Tracker timeout or is bounded by the state machine — confirmed: it is the same single await point, and it is wrapped by `DeadlineTracker.call`
+- [ ] T0543 Write a stress test: simulate simultaneous mutual-wait conditions and confirm no permanent hang occurs — not written; there is currently no two-sided match driver where both peers could mutually await each other, so there is no mutual-wait scenario yet to stress-test
+- [ ] T0544 Document the deadlock-prevention design in the architecture section of the README — deferred; README.md is being kept minimal for the final academic report per the user's instruction, so this belongs in `docs/PRD_reliability_layer.md` instead (done there)
 
 ---
 
