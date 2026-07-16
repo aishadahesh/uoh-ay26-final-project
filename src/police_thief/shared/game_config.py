@@ -15,6 +15,7 @@ not on array ordering).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from dataclasses import dataclass
@@ -23,6 +24,7 @@ from pathlib import Path
 from police_thief.domain.board import BoardConfig, Position
 from police_thief.domain.scent import ScentConfig
 from police_thief.domain.scoring import ScoringTable
+from police_thief.services.commit_reveal import canonical_json
 from police_thief.shared.config import ConfigError
 
 MIN_MAX_BARRIERS = 14
@@ -59,6 +61,19 @@ def _validate_fixed_scent_config(scent: ScentConfig, path: Path) -> None:
         raise GameConfigError(f"scent_decay_rate must be exactly {fixed.decay_rate} at {path}")
     if scent.field_size != fixed.field_size:
         raise GameConfigError(f"scent_field_size must be exactly {fixed.field_size} at {path}")
+
+
+def config_fingerprint(path: Path) -> str:
+    """SHA-256 over the canonically-serialized shared config (Sec. 4.2.6/5.5).
+
+    "Cryptographically locking" the physics/scent parameters before match
+    start means: this fingerprint goes into the signed Step-0 declaration
+    (services/step0.py), so any later divergence -- including a change to
+    the otherwise-fixed scent parameters -- is detectable by comparing
+    fingerprints, without needing a bespoke locking mechanism per section.
+    """
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return hashlib.sha256(canonical_json(data)).hexdigest()
 
 
 def load_match_parameters(path: Path) -> MatchParameters:
