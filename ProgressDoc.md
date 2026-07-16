@@ -286,4 +286,41 @@ ruff check: All checks passed!
 
 **Tasks checked off:** `docs/TODO.md` Section J — 20 of 32 tasks (J.1: 8/10, J.2: 7/10, J.3: 6/8, J.4: 2/10, J.5: 2/4), each unchecked item left with inline rationale rather than a silent gap.
 
+**Status:** committed (5 commits: state machine, deadline tracker + watchdog, log manager + orchestrator, tests, docs).
+
+---
+
+### Chapter 9 — League, Computational Fairness & Automated Reporting
+
+**What this chapter covers (`docs/tasks.md` §9):** two mostly-independent concerns bundled under one chapter. First, **league scoring across a whole season**: the Diversity Incentive (a win against a new opponent scores extra), the rule that only one game per opponent ever counts toward scoring, min/max game-count caps, false-declaration detection, and the cross-series tie rule. Second, **automated Gmail reporting as a genuine engineering liability**: a buggy reporting loop has write access to a real email account, so a `Gatekeeper` of three cumulative defenses (Quota Manager, Token-Bucket rate limiter, DOS/Anomaly Detector) must sit in front of every send, plus correct backoff on Gmail's `429 Too Many Requests`, plus four mandatory, namespaced JSON report files covering a match's full lifecycle.
+
+**What was implemented:**
+- `services/token_bucket.py` — `TokenBucket(capacity, refill_rate, clock)` implementing Sec. 9.3.10's mandatory formula (`tokens <- min(C, tokens + r*dt)`) exactly, via an injectable clock (the same fake-clock pattern as Chapter 8's Watchdog).
+- `services/quota_manager.py` — `QuotaManager` tracking a daily send count against a configurable threshold, persisted to a small JSON file so it survives a process restart, and resetting correctly at a (test-injectable) day boundary.
+- `services/anomaly_detector.py` — `AnomalyDetector`, a sliding-window circuit breaker that trips permanently (never self-resets) on an abnormal send-repetition pattern — the opposite failure mode from Chapter 8's Watchdog (excess of activity rather than absence of it).
+- `services/gatekeeper.py` — `Gatekeeper` composing all three (quota → anomaly → rate-limit order, chosen so a blocked send never wastes a token), plus `Http429BackoffPolicy` encoding Sec. 9.3.13's bounded, non-blind retry schedule for a `429`.
+- `services/match_reports.py` — the four mandatory JSON report builders (`declaration_<game_id>.json`, `config_<game_id>_g<NN>.json`, `log_<game_id>_g<NN>.json`, `result_<game_id>.json`), correctly namespaced; the log file deliberately reuses Chapter 7's `save_log`/`load_log` verbatim rather than re-implementing it, since Sec. 9.3.19 itself describes that file as "for cryptographic audit in a replay simulator" — the exact file Chapter 7 already consumes.
+- `services/gmail_report_sender.py` — MIME message construction restricted at the type level to a JSON `dict`/`list` payload (never free text, enforced with a real runtime `TypeError`, not just a type hint), base64url encoding for the Gmail API's `raw` field, and `send_match_report` orchestrating the Gatekeeper gate plus 429 backoff via an injectable `transport` callable.
+- `domain/league.py` — `LeagueRecord` (Diversity Incentive scoring, the one-counted-game-per-opponent rule enforced as a hard `LeagueRuleError` rather than a silent no-op, min/max game caps), `verify_game_count_declaration`, `apply_tie_rule`.
+- `docs/PRD_gmail_gatekeeper.md` — the eighth per-mechanism PRD.
+- Tests: `test_token_bucket.py`, `test_quota_manager.py`, `test_anomaly_detector.py`, `test_gatekeeper.py`, `test_match_reports.py`, `test_gmail_report_sender.py`, `test_league.py` — 54 new tests (326 total).
+
+**Quality gate results:**
+```
+326 passed in 17.45s
+TOTAL coverage: 99.83% (required: 85.0%)
+ruff check: All checks passed!
+```
+100% coverage on every file this chapter touches.
+
+**The single largest, deliberate scope boundary this chapter — no real Gmail OAuth wiring:** Sec. I.3 requires creating an actual Google Cloud project, configuring a real OAuth consent screen, and running a real interactive authorization flow to produce `token.json`. None of this can happen inside an automated coding session — there is no real Gmail account or Google Cloud project here to authorize against, and fabricating fake credentials would prove nothing real. This is the same category of limitation as Chapter 6's deferred real LLM provider integration and Chapter 7's deferred native screenshots: a genuine external/manual dependency, not a shortcut. What was built instead is everything provable without it — MIME construction, JSON-only enforcement, base64url encoding, and the entire Gatekeeper-guarded 429-aware send pipeline, all exercised against an injectable `transport` callable standing in for the real Gmail API call. **This is flagged as a manual step for you**: complete the OAuth setup per Sec. I.3, then write one real `Transport` implementation calling the actual Gmail API — everything downstream of that already works and is tested.
+
+**A real gap closed rather than left as a paper guarantee:** Sec. 9.3.15 marks free-text reports `[FORBIDDEN]`, but a Python type hint (`json_payload: dict`) is never actually checked at runtime — a caller could still pass a string and nothing would stop it. Added a genuine `isinstance` check inside `build_report_email` raising `TypeError` on anything that isn't a `dict`/`list`, plus a test proving it (`test_build_report_email_rejects_a_free_text_string_payload_at_runtime`). The same discipline as Chapter 8's mocked self-verification test: don't let a "should never happen" branch go untested just because it's inconvenient to trigger.
+
+**A rule that looks like two rules but is really one:** Sec. 9.2.1 ("victory against an opponent not already beaten" scores the Diversity Incentive) and Sec. 9.2.2 ("only one game per opponent counts, ever") read as two separate mechanisms at first, but because a counted game against any given opponent can only ever happen once, "not already beaten" and "this is your only counted game against them" collapse into the same condition. `LeagueRecord.record_counted_game` implements this as one unified operation rather than tracking two separate, potentially-inconsistent sets ("beaten" vs. "counted").
+
+**What was deliberately left undone, and why (full detail in `docs/PRD_gmail_gatekeeper.md` §3):** the real Gmail OAuth wiring (above); config-driven wiring of rate-limiter/recipient values into the Gatekeeper (no live-match end-of-match hook exists yet to consume them, the same gap as Chapter 8's deferred timeout config wiring); a bounded request queue (`queue_depth`) for outbound reports (no concurrent/async send call site exists yet to need one); automatic mutual-sign-off enforcement *inside* `send_match_report` itself (the `results_agree()` check exists and is correct, but isn't yet wired as an automatic precondition); and all of Section L's real-world league-day operations (scheduling and playing actual matches against other teams' agents), since no opponent teams exist in a solo development session. L.4's scoring-edge-case logic, needing no live opponent, is fully tested.
+
+**Tasks checked off:** `docs/TODO.md` Section I.3-I.9 (I.5/I.6 nearly complete, I.7/I.8 mostly complete, I.3/I.4's OAuth-dependent items and I.9's live-match milestone correctly left unchecked) and Section L.4 (all 4 tasks) — roughly 40 of the ~65 tasks across these sections, each unchecked item left with inline rationale.
+
 **Status:** awaiting review before committing.

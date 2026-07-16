@@ -574,83 +574,83 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [x] T0437 Package the Replay Viewer so it can be run independently from the live match code — `python -m police_thief replay`, verified to construct and render correctly standalone
 
 ### I.3 Gmail API OAuth 2.0 Setup
-- [ ] T0438 Create/select a Google Cloud project for the cop agent's Gmail integration
-- [ ] T0439 Enable the Gmail API in the Google Cloud Console
-- [ ] T0440 Configure the OAuth consent screen (External or Internal, Test Users list)
-- [ ] T0441 Add both team members' emails to the Test Users list
-- [ ] T0442 Restrict OAuth scope to `gmail.send` only
-- [ ] T0443 Create OAuth Client ID credentials of type Desktop Application
-- [ ] T0444 Download `credentials.json` into the local project folder
-- [ ] T0445 Confirm `credentials.json` is listed in `.gitignore` before any commit
-- [ ] T0446 Run the first authorization flow locally and confirm `token.json` is generated
-- [ ] T0447 Confirm `token.json` is listed in `.gitignore` before any commit
-- [ ] T0448 Repeat the same OAuth setup steps for the thief agent's own Google Cloud project (or shared project, per team decision)
-- [ ] T0449 Write a setup runbook documenting all OAuth steps for reproducibility
-- [ ] T0450 Test token refresh behavior (force an expired access token and confirm silent refresh works)
+- [ ] T0438 Create/select a Google Cloud project for the cop agent's Gmail integration — cannot be performed in this coding session: requires a real Google Cloud account/project, not something an automated session has access to
+- [ ] T0439 Enable the Gmail API in the Google Cloud Console — same reason
+- [ ] T0440 Configure the OAuth consent screen (External or Internal, Test Users list) — same reason
+- [ ] T0441 Add both team members' emails to the Test Users list — same reason
+- [ ] T0442 Restrict OAuth scope to `gmail.send` only — same reason
+- [ ] T0443 Create OAuth Client ID credentials of type Desktop Application — same reason
+- [ ] T0444 Download `credentials.json` into the local project folder — same reason
+- [ ] T0445 Confirm `credentials.json` is listed in `.gitignore` before any commit — same reason (nothing to gitignore yet since no credentials file was ever created)
+- [ ] T0446 Run the first authorization flow locally and confirm `token.json` is generated — same reason
+- [ ] T0447 Confirm `token.json` is listed in `.gitignore` before any commit — same reason
+- [ ] T0448 Repeat the same OAuth setup steps for the thief agent's own Google Cloud project (or shared project, per team decision) — same reason
+- [ ] T0449 Write a setup runbook documenting all OAuth steps for reproducibility — deferred until a team actually completes the manual setup once and can document the real, verified steps
+- [ ] T0450 Test token refresh behavior (force an expired access token and confirm silent refresh works) — cannot be tested without real OAuth tokens
 
 ### I.4 Gmail Sending Implementation
-- [ ] T0451 Implement `get_service()` loading credentials/token and building the Gmail API service object
-- [ ] T0452 Implement `send_report(service, to_addr, subject, body)` constructing a MIME message
-- [ ] T0453 Implement base64url encoding of the MIME message before sending
-- [ ] T0454 Wire the recipient address to the configured `[agent's report address]`
-- [ ] T0455 Write unit test: message construction produces valid MIME structure
-- [ ] T0456 Write integration test: a test email is successfully sent and received at the target address
-- [ ] T0457 Implement error handling for Gmail API send failures (network error, auth error, quota error)
-- [ ] T0458 Implement retry-with-backoff on transient send failures
-- [ ] T0459 Log every send attempt (success/failure) locally for audit purposes
+- [ ] T0451 Implement `get_service()` loading credentials/token and building the Gmail API service object — deferred: requires the real OAuth setup above (T0438-T0450); `services/gmail_report_sender.py` instead takes an injectable `Transport` callable so the rest of the pipeline is fully built and tested without it
+- [x] T0452 Implement `send_report(service, to_addr, subject, body)` constructing a MIME message — `build_report_email()`; takes a JSON payload (dict/list) rather than a free-text `body`, per T0497/Sec. 9.3.15
+- [x] T0453 Implement base64url encoding of the MIME message before sending — `encode_for_gmail_api()`
+- [ ] T0454 Wire the recipient address to the configured `[agent's report address]` — the fixed recipient is documented (commented out) in `config/cop/game.toml`/`config/thief/game.toml`'s new `[email]` section, but no config loader function reads it yet, since there is no live-match call site to wire it into (same gap as Ch.8's deferred `response_timeout_sec`/`watchdog_timeout_sec` wiring)
+- [x] T0455 Write unit test: message construction produces valid MIME structure — `test_build_report_email_attaches_json_not_free_text`
+- [ ] T0456 Write integration test: a test email is successfully sent and received at the target address — cannot be done without real OAuth credentials/a real Gmail account
+- [x] T0457 Implement error handling for Gmail API send failures (network error, auth error, quota error) — `GmailRateLimitedError`/`GmailSendError`, handled distinctly in `send_match_report`
+- [x] T0458 Implement retry-with-backoff on transient send failures — `Http429BackoffPolicy`, retried only for `GmailRateLimitedError`, never for a hard `GmailSendError`
+- [x] T0459 Log every send attempt (success/failure) locally for audit purposes — `SendResult.attempts` (a `SendAttempt` per try); returned to the caller rather than written to a log file itself, since no persistent send-audit-log file format was specified anywhere in the rulebook
 
 ### I.5 Gatekeeper: Quota Manager
-- [ ] T0460 Implement a daily operation counter for Gmail sends
-- [ ] T0461 Implement a configurable daily safety threshold
-- [ ] T0462 Write unit test: quota manager blocks sends once the daily threshold is reached
-- [ ] T0463 Persist the daily counter across process restarts (file or lightweight local store)
-- [ ] T0464 Write unit test: counter resets correctly at day boundary
+- [x] T0460 Implement a daily operation counter for Gmail sends — `services/quota_manager.py`
+- [x] T0461 Implement a configurable daily safety threshold
+- [x] T0462 Write unit test: quota manager blocks sends once the daily threshold is reached
+- [x] T0463 Persist the daily counter across process restarts (file or lightweight local store) — a small JSON file at `persist_path`
+- [x] T0464 Write unit test: counter resets correctly at day boundary
 
 ### I.6 Gatekeeper: Token-Bucket Rate Limiter
-- [ ] T0465 Implement `TokenBucket` class with `capacity` and `refill_rate` parameters
-- [ ] T0466 Implement continuous refill logic based on elapsed time
-- [ ] T0467 Implement `allow(cost=1.0)` method spending a token if available
-- [ ] T0468 Write unit test: bucket starts full at capacity
-- [ ] T0469 Write unit test: bucket refills over time up to capacity, never beyond
-- [ ] T0470 Write unit test: `allow()` returns False when no tokens are available
-- [ ] T0471 Wire the token-bucket parameters to config (`requests_per_minute`, `concurrent_requests`)
-- [ ] T0472 Integrate the token bucket in front of every outbound Gmail API call
-- [ ] T0473 Write integration test: rapid-fire send attempts are correctly throttled by the bucket
+- [x] T0465 Implement `TokenBucket` class with `capacity` and `refill_rate` parameters — `services/token_bucket.py`, implementing Sec. 9.3.10's exact formula
+- [x] T0466 Implement continuous refill logic based on elapsed time
+- [x] T0467 Implement `allow(cost=1.0)` method spending a token if available
+- [x] T0468 Write unit test: bucket starts full at capacity
+- [x] T0469 Write unit test: bucket refills over time up to capacity, never beyond
+- [x] T0470 Write unit test: `allow()` returns False when no tokens are available
+- [ ] T0471 Wire the token-bucket parameters to config (`requests_per_minute`, `concurrent_requests`) — not done; `config/game.json` has no `rate_limiter_gatekeeper` section yet (same gap noted at K.1/K.3 below), so `TokenBucket` is constructed directly by callers today
+- [x] T0472 Integrate the token bucket in front of every outbound Gmail API call — `Gatekeeper.submit()` checks/spends it on every call, and `send_match_report` always routes through the Gatekeeper first
+- [x] T0473 Write integration test: rapid-fire send attempts are correctly throttled by the bucket — `test_report_is_rate_limited_once_the_token_bucket_is_empty` (a unit-level test of the real, non-mocked pipeline, not a separately-marked integration test)
 
 ### I.7 Gatekeeper: DOS/Anomaly Detector & 429 Handling
-- [ ] T0474 Implement detection of abnormal repeated-send patterns (e.g., N sends within a short window)
-- [ ] T0475 Implement a circuit-breaker/lock state that halts all sends once an anomaly is detected
-- [ ] T0476 Write unit test: anomaly detector trips on a simulated infinite-loop send pattern
-- [ ] T0477 Implement HTTP 429 response detection from the Gmail API
-- [ ] T0478 Implement backoff-and-wait logic specifically for 429 responses (respecting `retry_backoff_sec` and `max_retries`)
-- [ ] T0479 Write unit test: a simulated 429 response triggers backoff rather than an immediate retry storm
-- [ ] T0480 Implement a bounded request queue (`queue_depth`) for outbound reports under load
-- [ ] T0481 Write unit test: queue depth cap is respected; excess requests are rejected/logged rather than silently dropped
-- [ ] T0482 Wire the Quota Manager, Token-Bucket, and DOS Detector into a single composed `Gatekeeper` pipeline
-- [ ] T0483 Write integration test: a report passes cleanly through all three Gatekeeper stages under normal load
-- [ ] T0484 Write integration test: a report is correctly rejected/blocked at each stage under simulated abuse conditions
+- [x] T0474 Implement detection of abnormal repeated-send patterns (e.g., N sends within a short window) — `services/anomaly_detector.py`, a sliding-window counter
+- [x] T0475 Implement a circuit-breaker/lock state that halts all sends once an anomaly is detected — trips permanently, does not self-reset on a quiet period
+- [x] T0476 Write unit test: anomaly detector trips on a simulated infinite-loop send pattern
+- [x] T0477 Implement HTTP 429 response detection from the Gmail API — `GmailRateLimitedError`, raised by the (currently fake, in tests) transport
+- [x] T0478 Implement backoff-and-wait logic specifically for 429 responses (respecting `retry_backoff_sec` and `max_retries`) — `Http429BackoffPolicy`
+- [x] T0479 Write unit test: a simulated 429 response triggers backoff rather than an immediate retry storm
+- [ ] T0480 Implement a bounded request queue (`queue_depth`) for outbound reports under load — not implemented: no literal queue data structure exists; the Gatekeeper paces/blocks individual send attempts synchronously rather than queuing them, since no concurrent/async report-sending call site exists yet to need one
+- [ ] T0481 Write unit test: queue depth cap is respected; excess requests are rejected/logged rather than silently dropped — deferred, depends on T0480
+- [x] T0482 Wire the Quota Manager, Token-Bucket, and DOS Detector into a single composed `Gatekeeper` pipeline — `services/gatekeeper.py`
+- [x] T0483 Write integration test: a report passes cleanly through all three Gatekeeper stages under normal load
+- [x] T0484 Write integration test: a report is correctly rejected/blocked at each stage under simulated abuse conditions
 
 ### I.8 Mandatory JSON Report Files
-- [ ] T0485 Implement `declaration_<game_id>.json` builder (teams, members, repos, hardware, model, commit hash, budgets)
-- [ ] T0486 Implement `config_<game_id>_g<NN>.json` builder (locked match configuration snapshot)
-- [ ] T0487 Implement `log_<game_id>_g<NN>.json` builder (full move-by-move commit/reveal log)
-- [ ] T0488 Implement `result_<game_id>.json` builder (final score, sign-off, all four repo cross-links, token totals)
-- [ ] T0489 Write unit test: each of the four JSON builders produces schema-valid output
-- [ ] T0490 Write unit test: `game_id` and sub-game number consistently namespace all four files so they never mix across matches
-- [ ] T0491 Implement canonical JSON serialization consistently across all four file types
-- [ ] T0492 Implement inclusion of the SHA-256 of the match log inside the results report
-- [ ] T0493 Implement inclusion of total LLM token consumption inside the results report
-- [ ] T0494 Implement mutual sign-off logic: both sides must agree on the score before either sends its report
-- [ ] T0495 Write integration test: a disagreement in final score between the two sides is detected and handled (e.g., flagged, not silently sent)
-- [ ] T0496 Implement attaching the results JSON as an email attachment (not inline free text)
-- [ ] T0497 Write unit test: attempting to send a non-JSON/free-text report is rejected by the sending code path itself
+- [x] T0485 Implement `declaration_<game_id>.json` builder (teams, members, repos, hardware, model, commit hash, budgets) — `services/match_reports.py::build_declaration`, wrapping Ch.5's `SignedStep0`
+- [x] T0486 Implement `config_<game_id>_g<NN>.json` builder (locked match configuration snapshot) — `build_config_snapshot`
+- [x] T0487 Implement `log_<game_id>_g<NN>.json` builder (full move-by-move commit/reveal log) — deliberately reuses Ch.7's `save_log`/`load_log` verbatim rather than a bespoke builder; `match_reports.py` only supplies the correct filename via `log_filename()`
+- [x] T0488 Implement `result_<game_id>.json` builder (final score, sign-off, all four repo cross-links, token totals) — `build_match_result`
+- [x] T0489 Write unit test: each of the four JSON builders produces schema-valid output — via round-trip save/load assertions on every field
+- [x] T0490 Write unit test: `game_id` and sub-game number consistently namespace all four files so they never mix across matches
+- [ ] T0491 Implement canonical JSON serialization consistently across all four file types — partial: all four files are serialized consistently with each other (`json.dumps(..., indent=2, sort_keys=True)`, human-readable), but this is not the same strict, compact canonical form Ch.5's `canonical_json` uses for hashing; `sha256_of_log` correctly uses the strict canonical form internally for the hash itself, only the on-disk report files use the readable variant
+- [x] T0492 Implement inclusion of the SHA-256 of the match log inside the results report — `sha256_of_log`, embedded as `MatchResult.log_sha256`
+- [x] T0493 Implement inclusion of total LLM token consumption inside the results report — `MatchResult.total_tokens_used`, from Ch.5's `TokenUsage.total`
+- [ ] T0494 Implement mutual sign-off logic: both sides must agree on the score before either sends its report — `results_agree()` exists and is correct, but nothing yet calls it automatically as a gate *inside* `send_match_report` before sending; a caller must invoke it manually first. Wiring it in as an automatic precondition belongs with the not-yet-built end-of-match hook (see `docs/PRD_reliability_layer.md`'s note on the missing main match loop)
+- [x] T0495 Write integration test: a disagreement in final score between the two sides is detected and handled (e.g., flagged, not silently sent) — `test_results_agree_false_on_a_score_disagreement` (detects the disagreement; the "not silently sent" enforcement itself is the T0494 gap above)
+- [x] T0496 Implement attaching the results JSON as an email attachment (not inline free text) — `build_report_email` always attaches `json_payload` as a file, never inlines it in the body
+- [x] T0497 Write unit test: attempting to send a non-JSON/free-text report is rejected by the sending code path itself — `test_build_report_email_rejects_a_free_text_string_payload_at_runtime`; `build_report_email` raises `TypeError` on anything that isn't a `dict`/`list`, a genuine runtime check, not just a type hint
 
 ### I.9 Stage-7 Milestone
-- [ ] T0498 Confirm milestone: a match summary is sent via Gmail successfully from both sides independently
-- [ ] T0499 Confirm milestone: the GUI shows live match state correctly throughout a full match
-- [ ] T0500 Confirm milestone: the Replay App replays a captured match correctly with Verified OK stamps
-- [ ] T0501 Run a full end-to-end match: crypto + scent + LLM + GUI + Gmail reporting all active simultaneously
-- [ ] T0502 Document Stage-7 decisions in `PRD/07-reporting-gui.md`
+- [ ] T0498 Confirm milestone: a match summary is sent via Gmail successfully from both sides independently — cannot be confirmed without the real OAuth setup (I.3)
+- [x] T0499 Confirm milestone: the GUI shows live match state correctly throughout a full match — already confirmed in Chapter 7 (`test_live_gui_stays_in_sync_across_a_real_multi_turn_match`)
+- [x] T0500 Confirm milestone: the Replay App replays a captured match correctly with Verified OK stamps — already confirmed in Chapter 7
+- [ ] T0501 Run a full end-to-end match: crypto + scent + LLM + GUI + Gmail reporting all active simultaneously — cannot be run yet: no single live-match entrypoint wires the Orchestrator (Ch.8), GUI (Ch.7), and Gmail reporting (Ch.9) together
+- [x] T0502 Document Stage-7 decisions in `PRD/07-reporting-gui.md` — superseded by `docs/PRD_gmail_gatekeeper.md` per this master PRD's naming convention (see `docs/PRD.md` §7's reconciliation note)
 
 ---
 
@@ -737,9 +737,9 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [ ] T0564 Confirm no value in the private TOML ever needs to match the opponent's TOML (spot-check review)
 
 ### K.3 Rate-Limiter Config (`rate_limits.json`)
-- [ ] T0565 Finalize `rate_limits.json` schema (requests_per_minute, concurrent_requests, retry_backoff_sec, max_retries, queue_depth)
-- [ ] T0566 Wire this config into the Gatekeeper's Token-Bucket and Quota Manager
-- [ ] T0567 Write unit test: rate-limit config values are correctly loaded and applied
+- [ ] T0565 Finalize `rate_limits.json` schema (requests_per_minute, concurrent_requests, retry_backoff_sec, max_retries, queue_depth) — not done: Chapter 9 built the Gatekeeper (`services/token_bucket.py`, `quota_manager.py`, `anomaly_detector.py`, `gatekeeper.py`) with these as direct constructor parameters, fully tested, but no standalone `rate_limits.json` file/schema was created yet
+- [ ] T0566 Wire this config into the Gatekeeper's Token-Bucket and Quota Manager — deferred, same reason as T0471/T0529/T0535: no real call site (a live match's end-of-match reporting hook) exists yet to consume config-driven values instead of directly-supplied test parameters
+- [ ] T0567 Write unit test: rate-limit config values are correctly loaded and applied — deferred, depends on T0565/T0566
 
 ### K.4 Config Loader Robustness
 - [ ] T0568 Implement a single unified config-loading entry point used consistently across the whole codebase
@@ -753,6 +753,8 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 ---
 
 ## L. League Operations & Live Matches
+
+**Note (Chapter 9):** L.1-L.3 below are real-world league-day operations against other teams' actual agents — they require opponent teams that do not exist yet in a solo development session, so they remain unchecked, not because the underlying capability is missing (`domain/league.py`, `services/gatekeeper.py`, and `services/match_reports.py` built this chapter provide everything needed to run and report a real match) but because there is no live opponent to run them against yet. L.4's scoring-edge-case logic, by contrast, needed no live opponent to test and is covered below.
 
 ### L.1 Pre-Match Coordination With Opponent Teams
 - [ ] T0575 Identify at least two other teams to arrange live matches against
@@ -784,10 +786,10 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [ ] T0597 Keep a log of all attempted/aborted matches (not just successful ones) for your own troubleshooting history
 
 ### L.4 Tie & Edge-Case Handling
-- [ ] T0598 Write integration test: a tied cumulative score across a full series correctly awards `[tie score]` to both sides
-- [ ] T0599 Write integration test: exactly reaching `[max games per team]` correctly stops further counted games
-- [ ] T0600 Write integration test: exactly reaching `[min games to pass]` correctly marks the team as eligible
-- [ ] T0601 Verify scoring computation correctly separates counted games from warm-up games in all reporting
+- [x] T0598 Write integration test: a tied cumulative score across a full series correctly awards `[tie score]` to both sides — `test_apply_tie_rule_awards_tie_score_to_both_sides_on_an_exact_tie`; a unit-level test of `apply_tie_rule`, since no live series-running match loop exists yet to integration-test end-to-end
+- [x] T0599 Write integration test: exactly reaching `[max games per team]` correctly stops further counted games — `test_a_counted_game_beyond_the_max_games_per_team_cap_is_rejected`
+- [x] T0600 Write integration test: exactly reaching `[min games to pass]` correctly marks the team as eligible — `test_games_played_and_minimum_threshold_track_correctly`
+- [x] T0601 Verify scoring computation correctly separates counted games from warm-up games in all reporting — by construction: `LeagueRecord` only ever learns about a game via `record_counted_game`; a warm-up game is simply never passed to it, so there is no separate "warm-up" code path that could conflate the two rather than an explicit dual-tracking mechanism
 
 ---
 
