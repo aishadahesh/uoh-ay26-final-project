@@ -12,19 +12,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from police_thief.domain.board import Board, Move, MoveRejectedError, Position
+from police_thief.domain.board import Board, Move, Position
 from police_thief.domain.capture import check_capture, is_boxed_in
+from police_thief.domain.heuristics import greedy_manhattan_move
 from police_thief.domain.scent import ScentField
 from police_thief.domain.scoring import MatchOutcome, ScoringTable, score_for
 from police_thief.shared.game_config import MatchParameters
 
 Policy = Callable[[Board, Position, Position], Move]
-
-_ORTHOGONAL = (Move.NORTH, Move.SOUTH, Move.EAST, Move.WEST)
-
-
-def _manhattan(a: Position, b: Position) -> int:
-    return abs(a.row - b.row) + abs(a.col - b.col)
 
 
 @dataclass(frozen=True)
@@ -46,29 +41,25 @@ class MatchResult:
 
 
 def move_toward_policy(board: Board, own: Position, target: Position) -> Move:
-    """Placeholder: greedily reduce Manhattan distance to `target`. Not real strategy."""
-    best_move, best_distance = Move.STAY, _manhattan(own, target)
-    for move in _ORTHOGONAL:
-        try:
-            candidate = board.apply_move(own, move)
-        except MoveRejectedError:
-            continue
-        if (distance := _manhattan(candidate, target)) < best_distance:
-            best_move, best_distance = move, distance
-    return best_move
+    """Placeholder: greedily reduce Manhattan distance to `target`.
+
+    This "cheats" relative to real strategy (Chapter 6): it takes the
+    opponent's true position directly rather than a belief-map estimate,
+    which is fine for a placeholder proving the board/scent/scoring logic
+    works, but would violate partial observability for a real brain. See
+    domain/strategy/manhattan_brain.py for the belief-map-respecting
+    equivalent, which shares this module's search logic via
+    domain/heuristics.py rather than duplicating it.
+    """
+    return greedy_manhattan_move(board, own, target, chase=True)
 
 
 def move_away_policy(board: Board, own: Position, threat: Position) -> Move:
-    """Placeholder: greedily increase Manhattan distance from `threat`. Not real strategy."""
-    best_move, best_distance = Move.STAY, _manhattan(own, threat)
-    for move in _ORTHOGONAL:
-        try:
-            candidate = board.apply_move(own, move)
-        except MoveRejectedError:
-            continue
-        if (distance := _manhattan(candidate, threat)) > best_distance:
-            best_move, best_distance = move, distance
-    return best_move
+    """Placeholder: greedily increase Manhattan distance from `threat`. See
+    move_toward_policy's docstring for why this is a placeholder, not real
+    strategy.
+    """
+    return greedy_manhattan_move(board, own, threat, chase=False)
 
 
 def run_local_match(
