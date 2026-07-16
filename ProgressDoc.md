@@ -154,4 +154,33 @@ ruff check: All checks passed!
 
 **Tasks checked off:** `docs/TODO.md` Section F.1 — 12 of 15 tasks (T0278 and T0280 deferred to Chapter 6/7 respectively; T0277 left explicitly unchecked as documented above, not simply skipped).
 
-**Status:** awaiting review before committing. Next up — Chapter 5 (cryptographic security & Zero-Knowledge protocol).
+**Status:** committed (5 commits: scent model, config wiring, simulation integration, tests, docs).
+
+---
+
+### Chapter 5 — Cryptographic Security & Zero-Knowledge Protocol
+
+**What this chapter covers (`docs/tasks.md` §6):** in a referee-less P2P match, "hindsight rewriting" (changing a move after the fact) is the central cheating risk. The fix is mathematical: a Commit-Reveal protocol over SHA-256 binds each side to `State+Move+Intent` before either side reveals anything, using a fresh cryptographic Nonce; a Step-0 declaration (hardware spec, code version, git commit hash) signed with HMAC-SHA256 makes any computational advantage visible and auditable. **Scope note:** the rulebook's four-step protocol (`Commit → Acknowledge → Reveal → Audit`) has both a *cryptographic* half (the primitives — this chapter) and a *network-enforcement* half (rejecting an out-of-order step, converting a failed audit into a live match loss — Chapter 8's Orchestrator/state machine). This session built only the primitives, deliberately not touching `mcp_server.py`/`mcp_client.py`.
+
+**What was implemented:**
+- `services/commit_reveal.py` — `canonical_json` (deterministic serialization), `generate_nonce` (via `secrets`, never `random`), `commit`/`verify` implementing `H_commit = SHA256(State‖Move‖Intent‖Nonce)` with constant-time comparison, and `LogEntry`/`AuditResult`/`audit_log` for mutual end-of-match tampering detection.
+- `services/step0.py` — `HardwareSpec` + `gather_hardware_spec` (stdlib-only OS/CPU/RAM detection across Windows/Linux/macOS, graceful `0.0` fallback, GPU presence caller-supplied), `get_git_commit_hash` (verified against this real repo), `Step0Declaration` + HMAC-SHA256 `sign_step0`/`verify_step0_signature`, and a minimal `TokenUsage` counter.
+- `shared/game_config.py::config_fingerprint` — SHA-256 over the canonically-serialized shared config, wired into `Step0Declaration.config_fingerprint`, closing Chapter 4's "scent parameters must be cryptographically locked" requirement (Sec. 4.2.6) as a side effect of a more general config-integrity mechanism rather than a bespoke per-parameter lock.
+- **No bespoke `sign_capture_claim()`/`sign_barrier_declaration()` functions**: demonstrated that the generic `commit`/`verify` primitives already seal and tamper-detect both, the same DRY pattern `check_capture()` already established in Chapter 3.
+- `docs/PRD_commit_reveal_crypto.md` — the third per-mechanism PRD.
+- Tests: `test_commit_reveal.py` (20 tests), `test_step0.py` (18 tests), `test_config_fingerprint.py` (5 tests) — 40 new tests (145 total).
+
+**Quality gate results:**
+```
+145 passed in 9.48s
+TOTAL coverage: 99.57% (required: 85.0%)
+ruff check: All checks passed!
+```
+
+**A real bug found and fixed, the same discipline as Chapter 3's `STAY`-on-barrier fix:** while wiring the Windows RAM-detection helper, I verified it standalone first (`ctypes` + `GlobalMemoryStatusEx`, confirmed `15.71 GB` correctly) — but the version I then wrote *inside* `step0.py` used a trimmed-down `ctypes.Structure` with only 4 of the 9 fields Windows' real `MEMORYSTATUSEX` struct actually has. Windows' `GlobalMemoryStatusEx` validates `dwLength` against its own fixed struct size and silently no-ops on a mismatch — no exception, just a wrong answer: `gather_hardware_spec()` reported `ram_gb=0.0` instead of the real value. Caught immediately by re-running the same "verify empirically before trusting a test assertion" check used every chapter so far, then fixed by using the complete, correctly-ordered 9-field struct — re-verified at `15.71 GB` afterward.
+
+**What was deliberately left undone, and why (see `docs/PRD_commit_reveal_crypto.md` §3):** the entire four-step network protocol's live sequencing/enforcement, automatic technical-loss on a failed audit, Step-0 exchange between two live processes, and the Replay-Viewer-facing log format contract are all Chapter 8 (Orchestrator/state machine) or Chapter 7 (Replay Viewer) territory. This chapter proves the underlying cryptographic primitives are correct in isolation and via a realistic synthetic multi-turn sequence (`test_multi_turn_log_audit_catches_a_post_hoc_tampering_attempt`) — without inventing throwaway state-machine or logging infrastructure ahead of the chapters that actually own that design.
+
+**Tasks checked off:** `docs/TODO.md` Sections H.1, H.4, H.5, H.6 (mostly complete), plus scattered items in H.3 — 28 of the ~48 tasks in Section H. The rest (H.2 entirely, most of H.3, H.7, H.8's live-match milestones) are explicitly deferred to Chapter 8, with inline rationale rather than silent gaps.
+
+**Status:** awaiting review before committing. Next up — Chapter 6 (strategy module & decision-making).

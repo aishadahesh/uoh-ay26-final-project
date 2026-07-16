@@ -465,68 +465,68 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 ## H. Stage 6 — Cryptographic Security & Zero-Knowledge Protocol
 
 ### H.1 Commit-Reveal Core Implementation
-- [ ] T0353 Implement `commit(state, move, intent)` producing `H_commit = SHA256(state || move || intent || nonce)`
-- [ ] T0354 Implement canonical JSON serialization (sorted keys, fixed separators) for the hashed payload
-- [ ] T0355 Implement cryptographically-secure Nonce generation (e.g., `secrets.token_hex`), never `random`
-- [ ] T0356 Write unit test: identical inputs with different Nonces produce different commitment hashes
-- [ ] T0357 Write unit test: `commit()` never transmits the raw move/intent, only the hash
-- [ ] T0358 Implement `verify(state, move, intent, nonce, h_commit)` recomputing and comparing hashes
-- [ ] T0359 Use constant-time comparison (e.g., `secrets.compare_digest`) in `verify()`
-- [ ] T0360 Write unit test: `verify()` returns True for a correct, untampered reveal
-- [ ] T0361 Write unit test: `verify()` returns False for any single-field tampering (state/move/intent/nonce)
+- [x] T0353 Implement `commit(state, move, intent)` producing `H_commit = SHA256(state || move || intent || nonce)`
+- [x] T0354 Implement canonical JSON serialization (sorted keys, fixed separators) for the hashed payload
+- [x] T0355 Implement cryptographically-secure Nonce generation (e.g., `secrets.token_hex`), never `random`
+- [x] T0356 Write unit test: identical inputs with different Nonces produce different commitment hashes
+- [x] T0357 Write unit test: `commit()` never transmits the raw move/intent, only the hash — `Commitment` is structurally limited to `{h_commit, nonce}`, verified directly
+- [x] T0358 Implement `verify(state, move, intent, nonce, h_commit)` recomputing and comparing hashes
+- [x] T0359 Use constant-time comparison (e.g., `secrets.compare_digest`) in `verify()`
+- [x] T0360 Write unit test: `verify()` returns True for a correct, untampered reveal
+- [x] T0361 Write unit test: `verify()` returns False for any single-field tampering (state/move/intent/nonce) — plus a dedicated test for the commit hash itself being altered
 
 ### H.2 Four-Step Protocol Wiring
-- [ ] T0362 Implement Step 1 (Commit): send only `H_commit` over the network
-- [ ] T0363 Implement Step 2 (Acknowledge): opponent confirms receipt and lock-in before either side proceeds
-- [ ] T0364 Write unit test: Acknowledge cannot be sent before a valid Commit was received
-- [ ] T0365 Implement Step 3 (Reveal): send the actual move + hint text, Nonce still withheld
-- [ ] T0366 Write unit test: Reveal step is rejected if it arrives before the corresponding Acknowledge
-- [ ] T0367 Implement Step 4 (Audit / Final Reveal): reveal all Nonces only at game end
-- [ ] T0368 Write unit test: the four steps cannot be executed out of order (protocol sequencing enforced)
-- [ ] T0369 Write unit test: skipping a step causes a technical-loss/rejection, not a silent pass-through
-- [ ] T0370 Add sequence diagrams/comments in code documenting the four-step handshake per turn
+- [ ] T0362 Implement Step 1 (Commit): send only `H_commit` over the network — deferred: this is network wiring, owned by Chapter 8's Orchestrator/state machine, not this chapter's crypto-primitives scope
+- [ ] T0363 Implement Step 2 (Acknowledge): opponent confirms receipt and lock-in before either side proceeds — deferred to Chapter 8
+- [ ] T0364 Write unit test: Acknowledge cannot be sent before a valid Commit was received — deferred to Chapter 8 (requires the state machine to test against)
+- [ ] T0365 Implement Step 3 (Reveal): send the actual move + hint text, Nonce still withheld — deferred to Chapter 8 (hint text itself is also Chapter 6)
+- [ ] T0366 Write unit test: Reveal step is rejected if it arrives before the corresponding Acknowledge — deferred to Chapter 8
+- [ ] T0367 Implement Step 4 (Audit / Final Reveal): reveal all Nonces only at game end — the crypto primitive (`audit_log`) exists; the *network* reveal-all-nonces-at-end-of-match step is Chapter 8
+- [ ] T0368 Write unit test: the four steps cannot be executed out of order (protocol sequencing enforced) — deferred to Chapter 8's legal state machine
+- [ ] T0369 Write unit test: skipping a step causes a technical-loss/rejection, not a silent pass-through — deferred to Chapter 8
+- [ ] T0370 Add sequence diagrams/comments in code documenting the four-step handshake per turn — the sequence diagram already exists in `docs/PLAN.md` §6; per-turn network code to comment doesn't exist yet (Chapter 8)
 
 ### H.3 Mutual Audit & Log Integrity
-- [ ] T0371 Implement full match-log recording of every step's state, move, intent, nonce, and commitment hash
-- [ ] T0372 Implement end-of-match mutual audit: recompute every step's hash and compare against the log's recorded commitment
-- [ ] T0373 Write unit test: audit passes on an untampered log
-- [ ] T0374 Write unit test: audit fails and flags tampering when any single byte of a logged step is altered
-- [ ] T0375 Implement automatic technical-loss declaration triggered by a failed audit
-- [ ] T0376 Write integration test: full match runs, log is deliberately tampered post-hoc, and audit correctly catches it
-- [ ] T0377 Ensure the audit result is deterministic and reproducible independent of who runs it
+- [ ] T0371 Implement full match-log recording of every step's state, move, intent, nonce, and commitment hash — the `LogEntry` shape exists and is exercised by tests; *recording* one during a live match needs the Log Manager (Chapter 8)
+- [x] T0372 Implement end-of-match mutual audit: recompute every step's hash and compare against the log's recorded commitment — `audit_log()`
+- [x] T0373 Write unit test: audit passes on an untampered log
+- [x] T0374 Write unit test: audit fails and flags tampering when any single byte of a logged step is altered
+- [ ] T0375 Implement automatic technical-loss declaration triggered by a failed audit — the primitive (`AuditResult.verified is False`) is ready for a caller to map to `MatchOutcome.TECHNICAL_LOSS`; that caller is Chapter 8's Orchestrator, which doesn't exist yet
+- [x] T0376 Write integration test: full match runs, log is deliberately tampered post-hoc, and audit correctly catches it — `test_multi_turn_log_audit_catches_a_post_hoc_tampering_attempt` builds a realistic multi-turn commit/reveal sequence (no live match engine produces logs yet, so this is a synthetic-but-faithful stand-in; wiring into `run_local_match` is Chapter 8's job)
+- [x] T0377 Ensure the audit result is deterministic and reproducible independent of who runs it — `test_audit_log_result_is_deterministic_across_repeated_runs`
 
 ### H.4 Capture Claim & Barrier Declaration Integrity
-- [ ] T0378 Implement cryptographic signing of `Capture Claim` events
-- [ ] T0379 Write unit test: a false capture claim is exposed during audit (position mismatch)
-- [ ] T0380 Implement cryptographic signing/logging of every barrier-placement declaration
-- [ ] T0381 Write unit test: barrier location cannot be silently altered after being declared without breaking the audit
+- [x] T0378 Implement cryptographic signing of `Capture Claim` events — no bespoke function needed: `commit()`/`verify()` are already generic enough to seal a `CaptureClaim`, demonstrated directly (DRY: mirrors how `check_capture()` was already generic across move/barrier captures in Chapter 3)
+- [x] T0379 Write unit test: a false capture claim is exposed during audit (position mismatch)
+- [x] T0380 Implement cryptographic signing/logging of every barrier-placement declaration — same generic primitive, demonstrated directly
+- [x] T0381 Write unit test: barrier location cannot be silently altered after being declared without breaking the audit
 
 ### H.5 Scent-Model Locking
-- [ ] T0382 Cryptographically lock the scent emission/decay formula parameters into the signed shared config before match start
-- [ ] T0383 Write unit test: any attempt to change scent parameters mid-match is detected/rejected
+- [x] T0382 Cryptographically lock the scent emission/decay formula parameters into the signed shared config before match start — `game_config.py::config_fingerprint` (SHA-256 over the canonical shared config), wired into `Step0Declaration.config_fingerprint`; not yet actually *exchanged and enforced* pre-match (Chapter 8), but the fingerprint primitive that would detect any divergence — including in the otherwise-fixed scent params — exists and is tested
+- [x] T0383 Write unit test: any attempt to change scent parameters mid-match is detected/rejected — `test_fingerprint_changes_if_the_otherwise_fixed_scent_decay_rate_changes` (detection); mid-match *rejection* enforcement is Chapter 8
 
 ### H.6 Step-0 Computational Fairness Declaration
-- [ ] T0384 Implement hardware-spec gathering: OS, CPU core count, RAM size, GPU/VRAM presence
-- [ ] T0385 Implement LLM-model-name capture for the Step-0 declaration
-- [ ] T0386 Implement Git commit-hash capture for the Step-0 declaration
-- [ ] T0387 Implement team-name and game/sub-game-number capture for the Step-0 declaration
-- [ ] T0388 Serialize the Step-0 declaration as canonical JSON
-- [ ] T0389 Cryptographically sign the Step-0 declaration with a pre-shared/agreed key
-- [ ] T0390 Write unit test: Step-0 declaration cannot be modified after signing without invalidating the signature
-- [ ] T0391 Implement exchange of Step-0 declarations between both agents before the first real move
-- [ ] T0392 Write integration test: match refuses to start without both sides' valid Step-0 declarations
+- [x] T0384 Implement hardware-spec gathering: OS, CPU core count, RAM size, GPU/VRAM presence — `gather_hardware_spec()`; caught and fixed a real bug during implementation (see `ProgressDoc.md`): an incomplete `ctypes` struct silently zeroed out Windows RAM detection
+- [x] T0385 Implement LLM-model-name capture for the Step-0 declaration
+- [x] T0386 Implement Git commit-hash capture for the Step-0 declaration — `get_git_commit_hash()`, verified against this real repo
+- [x] T0387 Implement team-name and game/sub-game-number capture for the Step-0 declaration
+- [x] T0388 Serialize the Step-0 declaration as canonical JSON
+- [x] T0389 Cryptographically sign the Step-0 declaration with a pre-shared/agreed key — HMAC-SHA256, not a bare hash (a keyless hash can't authenticate origin)
+- [x] T0390 Write unit test: Step-0 declaration cannot be modified after signing without invalidating the signature — including a nested-field (hardware spec) tamper test
+- [ ] T0391 Implement exchange of Step-0 declarations between both agents before the first real move — deferred to Chapter 8 (needs the Orchestrator to actually gate match start)
+- [ ] T0392 Write integration test: match refuses to start without both sides' valid Step-0 declarations — deferred to Chapter 8, same reason
 
 ### H.7 Replay-Ready Log Format
-- [ ] T0393 Ensure the log format produced here is directly consumable by the Stage-7 Replay Viewer
-- [ ] T0394 Write a schema/contract test verifying log fields match what the Replay Viewer expects
+- [ ] T0393 Ensure the log format produced here is directly consumable by the Stage-7 Replay Viewer — `LogEntry`'s shape is designed with this in mind, but cannot be confirmed against a Replay Viewer that doesn't exist yet (Chapter 7)
+- [ ] T0394 Write a schema/contract test verifying log fields match what the Replay Viewer expects — same reason, deferred to Chapter 7
 
 ### H.8 Stage-6 Milestone
-- [ ] T0395 Confirm milestone: moves must be committed via Commit and only then revealed via Reveal, with Nonce
-- [ ] T0396 Confirm milestone: correct Step-0 hardware declaration exchanged and verified
-- [ ] T0397 Run a full match with the complete crypto protocol active end-to-end with no crash
-- [ ] T0398 Deliberately inject a tampering bug and confirm the match is correctly disqualified
-- [ ] T0399 Document Stage-6 decisions in `PRD/06-security-crypto.md`
-- [ ] T0400 Peer-review the cryptographic code with your teammate for subtle bugs (constant-time comparisons, nonce reuse, serialization consistency)
+- [ ] T0395 Confirm milestone: moves must be committed via Commit and only then revealed via Reveal, with Nonce — the crypto primitives are ready; live turn-by-turn enforcement is Chapter 8
+- [ ] T0396 Confirm milestone: correct Step-0 hardware declaration exchanged and verified — signing/verifying works standalone; network *exchange* is Chapter 8
+- [ ] T0397 Run a full match with the complete crypto protocol active end-to-end with no crash — no live match uses the crypto layer yet
+- [ ] T0398 Deliberately inject a tampering bug and confirm the match is correctly disqualified — done at the primitive level (`audit_log` correctly catches injected tampering); "the match is disqualified" implies live `MatchOutcome` wiring, which is Chapter 8
+- [x] T0399 Document Stage-6 decisions in `PRD/06-security-crypto.md` — written as `docs/PRD_commit_reveal_crypto.md`, per the naming reconciliation in `docs/PRD.md` §7
+- [ ] T0400 Peer-review the cryptographic code with your teammate for subtle bugs (constant-time comparisons, nonce reuse, serialization consistency) — genuinely requires the human teammate's involvement; not something this session can complete alone
 
 ---
 
@@ -1185,3 +1185,4 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - Chapter 2 (P2P network architecture & FastMCP) — 23 more tasks checked (Section D.1–D.3, plus T0005). Note: Section D.4 (Turn Management) and all of Section C (Stage 1 board/scoring) remain unchecked by design — this project works through `docs/tasks.md` in chapter order (1, 2, 3, ...), not the rulebook's recommended build-priority order (Ch.10), so board logic (Chapter 3) hasn't been reached yet. See `ProgressDoc.md` for details.
 - Chapter 3 (board physics, movement, barriers, capture & scoring) — 73 more tasks checked across Section C.0–C.7. A handful (T0124, T0125, T0155, T0156, T0166) are explicitly left unchecked with inline rationale — mostly because they depend on a barrier-*placing* strategy or a match log that don't exist until Chapter 6/Chapter 5-9 respectively. See `ProgressDoc.md` and `docs/PRD_board_physics.md` for the full write-up.
 - Chapter 4 (dynamic pheromone trails) — 12 more tasks checked in Section F.1 only (emission/decay mechanics). Section F.2 onward (belief map, hint parsing, LLM integration, deception) is deliberately untouched: `docs/tasks.md` scopes that content to Chapter 6, even though this TODO's own stage grouping (F, "Language + Scent") bundles it together with scent. One genuine, documented rulebook tension was found and resolved via the academic-freedom-on-contradiction clause (T0277) rather than silently papered over. See `ProgressDoc.md` and `docs/PRD_pheromone_scent.md`.
+- Chapter 5 (cryptographic security & Step-0) — 28 more tasks checked across Section H.1, H.4-H.6. All of H.2 (four-step network protocol wiring), most of H.3 (live log recording/technical-loss wiring), H.7, and H.8's live-match milestones are deliberately deferred to Chapter 8 (Orchestrator/legal state machine) — this chapter builds the crypto *primitives* only, not their network enforcement. A real bug was found and fixed in Windows RAM detection along the way. See `ProgressDoc.md` and `docs/PRD_commit_reveal_crypto.md`.
