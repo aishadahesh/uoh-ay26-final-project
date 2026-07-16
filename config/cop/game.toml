@@ -21,3 +21,11 @@ turn_timeout_seconds = 30
 # The MOVE decision is always pure Python (Sec. 6.4.1) -- this only
 # affects hint phrasing. "template" (default) costs zero tokens.
 # provider = "template"
+
+# [email] -- Gmail end-of-match reporting (Ch.9, Sec. 9.3.2-9.3.3).
+# `recipient` is fixed by the rulebook's [agent's report address], never a
+# per-team choice. Real sending requires a Google Cloud OAuth setup this
+# session cannot perform (see docs/PRD_gmail_gatekeeper.md Sec.3) --
+# left commented out until a team completes that manual setup themselves.
+# recipient = "rmisegal+uoh26finalgame@gmail.com"
+# mode = "real"  # or "dry_run" while OAuth credentials aren't set up yet
