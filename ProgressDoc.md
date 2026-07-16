@@ -217,4 +217,40 @@ ruff check: All checks passed!
 
 **Tasks checked off:** `docs/TODO.md` Section E (E.1-E.2, E.5-E.7 mostly complete; E.3/E.4 marked as deliberate "decided not to pursue") and Section F.2-F.6 (belief map and bluff detection largely complete; hint/LLM depth explicitly scoped down) — 55 tasks this chapter.
 
-**Status:** awaiting review before committing. Next up — Chapter 7 (GUI & Replay Simulator).
+**Status:** committed (7 commits: belief map, heuristics refactor, strategy module, config wiring, hints, tests, docs).
+
+---
+
+### Chapter 7 — User Interface (GUI) & Replay Simulator
+
+**What this chapter covers (`docs/tasks.md` §8):** two distinct needs — the Live GUI answers "what is happening right now?" (local-truth-only: own position, belief heatmap, turn banner, never the opponent's true location), and the Replay Viewer answers "did it really happen as claimed?" (cryptographic re-verification of every logged step, with a green "Verified OK" or red "TAMPERED" stamp).
+
+**What was implemented:**
+- `domain/live_view_model.py` — `TurnState`, `belief_to_color` (white-to-red gradient, normalized to the map's own peak), `build_live_view_model` producing a `LiveViewModel` from *only* `own_position` + `BeliefMap` + `Board` — structurally incapable of holding the opponent's true position (no field, no parameter). Barrier cells render in a fixed distinct color, never a belief gradient.
+- `domain/replay.py` — `ReplaySession` reusing Chapter 5's `verify()`/`audit_log()` exactly rather than re-implementing the verification loop; adds scrubbing (`next`/`previous`/`jump_to`) and the "voided from the first tamper onward" per-step display rule (Sec. 7.5.1), plus `verified_count`/`tampered_count` summary properties. `save_log`/`load_log` handle the JSON file round trip.
+- `gui/live_gui.py` + `gui/replay_gui.py` — thin Tkinter wiring, all decisions already made in the view-model/session layer.
+- `main.py` gained a `replay --log-file PATH` subcommand, so the Replay Viewer runs standalone, independent of any live match code.
+- `docs/PRD_gui_replay.md` — the sixth per-mechanism PRD.
+- Tests: `test_live_view_model.py`, `test_replay.py`, `test_gui.py` (unit, including real Tkinter widget construction/rendering/button-invocation — nothing mocked), `tests/integration/test_gui_pipeline.py` (two headline integration proofs) — 58 new tests (235 total).
+
+**Quality gate results:**
+```
+235 passed in 7.97s
+TOTAL coverage: 99.73% (required: 85.0%)
+ruff check: All checks passed!
+```
+100% coverage on every GUI/replay module, including both Tkinter files — the `gui/*` coverage omission from `pyproject.toml` (added preemptively back in Chapter 1, anticipating GUI code would be hard to test) was removed once real widget-state testing proved it wasn't.
+
+**A real Tkinter limitation found and worked around, same discipline as every prior chapter's empirical-verification habit:** the first version of the GUI test suite created a fresh `tk.Tk()` per test function. After a handful of create/destroy cycles it failed with `_tkinter.TclError: invalid command name "tcl_findLibrary"` — a genuine, documented Tkinter limitation (it does not reliably support creating and destroying many root interpreters in one process). Fixed with a session-scoped root fixture and a per-test `Toplevel` window for isolation instead, then re-verified the full suite passed cleanly.
+
+**The two headline integration proofs, not just plumbing:**
+1. `test_live_gui_stays_in_sync_across_a_real_multi_turn_match` drives the actual Chapter 6 strategy pipeline for 5 real turns and asserts, at every turn, that the rendered banner and own-position marker match the real turn state and real position — using only the cop's own local truth.
+2. `test_replay_viewer_against_a_real_commit_reveal_sealed_multi_turn_log` builds a real multi-turn log via actual `commit()` calls over real board positions (not synthetic placeholders), saves it to a real file, reloads it, tampers the file on disk exactly as a dishonest player might, and confirms both the crypto layer and the GUI layer agree on the correct verdict throughout.
+
+**What was deliberately left undone, and why (see `docs/PRD_gui_replay.md` §3):** wiring the turn banner to a real state machine, a scrolling event log, a scoreboard, and a threading model separating GUI updates from network I/O all require the Orchestrator and Log Manager that Chapter 8 builds — none of that exists yet. Visual board/belief replay inside the Replay Viewer wasn't built either, since `LogEntry.state` is intentionally generic at the crypto layer.
+
+**An honest, flagged limitation — no screenshots:** `docs/tasks.md` Sec. 7.5.3 lists a belief-heatmap screenshot and a Replay Viewer "Verified OK" screenshot as mandatory submission deliverables. No tool available in this session captures native desktop window screenshots (only web-preview screenshots are supported here). Correctness was instead verified exhaustively via automated widget-state assertions — arguably a stronger correctness guarantee, but it does not substitute for the literal deliverable. **This is flagged as a manual step for you**: run `python -m police_thief replay --log-file <path>` (or launch `LiveGUI` directly) and capture the window before final submission.
+
+**Tasks checked off:** `docs/TODO.md` Section I.1-I.2 — 25 of 37 tasks. The rest are either deferred to Chapter 8 (state machine wiring, event log, scoreboard, threading), deliberately out of scope by design (manual input controls), or the three screenshot tasks noted above.
+
+**Status:** awaiting review before committing. Next up — Chapter 8 (Agent Architecture Design & Deep Reliability Mechanisms).

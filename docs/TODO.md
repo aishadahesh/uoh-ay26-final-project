@@ -533,45 +533,45 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 ## I. Stage 7 — GUI, Replay Viewer & Gmail Reporting Automation
 
 ### I.1 Live GUI — Local Truth Only
-- [ ] T0401 Choose GUI toolkit (Tkinter or PyQt/PySide) and scaffold a main window per role
-- [ ] T0402 Design the GUI layout: own position, own scent-emitted trail, belief heatmap over opponent, turn banner
-- [ ] T0403 Implement rendering of the board grid at the configured `[board size]`
-- [ ] T0404 Implement rendering of the agent's own current position on the grid
-- [ ] T0405 Implement rendering of static barrier cells (blocked, no belief)
-- [ ] T0406 Implement heatmap color-gradient rendering of the belief map (e.g., deeper red = higher probability)
-- [ ] T0407 Write unit test: heatmap rendering never displays the opponent's true position directly
-- [ ] T0408 Implement live refresh of the heatmap as new turns are played
-- [ ] T0409 Implement the turn-state banner ("YOUR TURN" vs "LOCKED")
-- [ ] T0410 Wire the turn-state banner to the actual Commit/Acknowledge/Reveal state machine state
-- [ ] T0411 Write unit test: banner shows LOCKED immediately after a Commit is sent, before Reveal completes
-- [ ] T0412 Write unit test: banner shows YOUR TURN only when the local agent may legally act
-- [ ] T0413 Implement disabling of manual input controls while LOCKED (prevent user from acting out of turn)
-- [ ] T0414 Add a scrolling event/log panel showing recent hints, moves, and barrier placements
-- [ ] T0415 Add a scoreboard panel showing current score/turn count
-- [ ] T0416 Add graceful handling of GUI close/exit without crashing the underlying match process
-- [ ] T0417 Test GUI responsiveness under normal match pacing (no UI freeze during LLM calls)
-- [ ] T0418 Run the GUI update loop on a separate thread/async task from network I/O to avoid blocking
-- [ ] T0419 Write integration test: GUI correctly reflects a full match from start to finish without desync
-- [ ] T0420 Take and save a screenshot of the belief-heatmap GUI for the README
+- [x] T0401 Choose GUI toolkit (Tkinter or PyQt/PySide) and scaffold a main window per role — Tkinter (stdlib, no new dependency); confirmed it works headlessly on this dev machine (`Tk()` constructs, widgets inspectable via `.cget()`/`.itemcget()`, buttons triggerable via `.invoke()`) before committing to it
+- [x] T0402 Design the GUI layout: own position, own scent-emitted trail, belief heatmap over opponent, turn banner — own position, belief heatmap, and turn banner are all rendered; the raw scent field itself is not rendered as a separate layer distinct from the belief heatmap it feeds (the heatmap *is* the scent-derived signal Sec. 7.3.2 actually requires)
+- [x] T0403 Implement rendering of the board grid at the configured `[board size]`
+- [x] T0404 Implement rendering of the agent's own current position on the grid
+- [x] T0405 Implement rendering of static barrier cells (blocked, no belief) — a distinct, fixed color, never a belief gradient, even if the (physically real) scent field has intensity there
+- [x] T0406 Implement heatmap color-gradient rendering of the belief map (e.g., deeper red = higher probability)
+- [x] T0407 Write unit test: heatmap rendering never displays the opponent's true position directly — plus a structural test that `LiveViewModel`/`build_live_view_model` have no field/parameter capable of holding it at all
+- [x] T0408 Implement live refresh of the heatmap as new turns are played — `render()` is callable repeatedly; proven via a real multi-turn integration test, not just a single-call smoke test
+- [x] T0409 Implement the turn-state banner ("YOUR TURN" vs "LOCKED")
+- [ ] T0410 Wire the turn-state banner to the actual Commit/Acknowledge/Reveal state machine state — deferred: no state machine exists yet (Chapter 8)
+- [x] T0411 Write unit test: banner shows LOCKED immediately after a Commit is sent, before Reveal completes — tested at the `TurnState`/view-model level (no live Commit/Reveal handshake exists yet to drive it automatically)
+- [x] T0412 Write unit test: banner shows YOUR TURN only when the local agent may legally act — same caveat
+- [ ] T0413 Implement disabling of manual input controls while LOCKED (prevent user from acting out of turn) — not applicable by design: this GUI has no manual input controls at all; agents act autonomously via `BrainBase` (Chapter 6), so there is nothing for a human to click out of turn
+- [ ] T0414 Add a scrolling event/log panel showing recent hints, moves, and barrier placements — deferred: no Log Manager exists yet (Chapter 8)
+- [ ] T0415 Add a scoreboard panel showing current score/turn count — deferred: no live match loop produces a running score yet
+- [ ] T0416 Add graceful handling of GUI close/exit without crashing the underlying match process — Tkinter's default window-close behavior is relied on for now; no custom handler added since there is no live match process yet to protect
+- [ ] T0417 Test GUI responsiveness under normal match pacing (no UI freeze during LLM calls) — not applicable: no LLM calls happen inside a live GUI loop yet
+- [ ] T0418 Run the GUI update loop on a separate thread/async task from network I/O to avoid blocking — deferred: no network I/O loop is wired to the GUI yet (Chapter 8)
+- [x] T0419 Write integration test: GUI correctly reflects a full match from start to finish without desync — `test_live_gui_stays_in_sync_across_a_real_multi_turn_match`, driving the real Chapter 6 strategy pipeline (single-process; live networked play is Chapter 8)
+- [ ] T0420 Take and save a screenshot of the belief-heatmap GUI for the README — not produced in this session: no tool available here captures native desktop window screenshots (only web-preview screenshots); correctness was instead verified via automated widget-state inspection. This remains a manual step for whoever runs the GUI locally before submission
 
 ### I.2 Replay Viewer Application
-- [ ] T0421 Scaffold a standalone Replay Viewer application (CLI or GUI)
-- [ ] T0422 Implement loading of a saved match log JSON file
-- [ ] T0423 Implement step-by-step navigation controls (next/previous/scrub)
-- [ ] T0424 Implement per-step recomputation of SHA-256 over (nonce, move) from the log
-- [ ] T0425 Implement comparison of recomputed hash against the log's stored commitment
-- [ ] T0426 Implement the green "Verified OK" stamp display per step on match
-- [ ] T0427 Implement the red "TAMPERED" banner display on any mismatch
-- [ ] T0428 Implement match-level disqualification flagging once any tamper is detected
-- [ ] T0429 Write unit test: verification engine correctly verifies an untampered log end-to-end
-- [ ] T0430 Write unit test: verification engine correctly flags a deliberately corrupted log
-- [ ] T0431 Implement visual replay of board state alongside the verification stamps (position/barriers per step)
-- [ ] T0432 Implement replay of scent/belief map state per step (optional enhancement)
-- [ ] T0433 Add a summary view: total steps, verification pass/fail count, final score
-- [ ] T0434 Write integration test: replay viewer runs against a real completed match log without crashing
-- [ ] T0435 Take and save a screenshot of the Replay Viewer showing "Verified OK" for the README
-- [ ] T0436 Take and save a screenshot of the Replay Viewer showing "TAMPERED" against a deliberately corrupted test log (for your own validation, not submission)
-- [ ] T0437 Package the Replay Viewer so it can be run independently from the live match code
+- [x] T0421 Scaffold a standalone Replay Viewer application (CLI or GUI) — `python -m police_thief replay --log-file PATH`
+- [x] T0422 Implement loading of a saved match log JSON file — `domain/replay.py::load_log`
+- [x] T0423 Implement step-by-step navigation controls (next/previous/scrub) — `ReplaySession.next/previous/jump_to`, wired to GUI buttons
+- [x] T0424 Implement per-step recomputation of SHA-256 over (nonce, move) from the log — reuses Chapter 5's `verify()`/`audit_log()` exactly rather than re-implementing it
+- [x] T0425 Implement comparison of recomputed hash against the log's stored commitment
+- [x] T0426 Implement the green "Verified OK" stamp display per step on match
+- [x] T0427 Implement the red "TAMPERED" banner display on any mismatch
+- [x] T0428 Implement match-level disqualification flagging once any tamper is detected — `is_fully_verified`, and every step at/after `first_tampered_index` renders as TAMPERED (Sec. 7.5.1's "voided on first tamper")
+- [x] T0429 Write unit test: verification engine correctly verifies an untampered log end-to-end
+- [x] T0430 Write unit test: verification engine correctly flags a deliberately corrupted log
+- [ ] T0431 Implement visual replay of board state alongside the verification stamps (position/barriers per step) — not built: `LogEntry.state` is intentionally generic (`Any`), so a rendered board view would require assuming a specific state shape the crypto layer deliberately does not mandate
+- [ ] T0432 Implement replay of scent/belief map state per step (optional enhancement) — explicitly marked optional in its own title; not built
+- [x] T0433 Add a summary view: total steps, verification pass/fail count, final score — `ReplaySession.verified_count`/`tampered_count` + a summary label; "final score" is not included, since no live match yet produces a score tied to a log (Chapter 8/9)
+- [x] T0434 Write integration test: replay viewer runs against a real completed match log without crashing — `test_replay_viewer_against_a_real_commit_reveal_sealed_multi_turn_log`, built from real `commit()`-sealed board positions, not synthetic placeholders, including a real file-tampering round trip
+- [ ] T0435 Take and save a screenshot of the Replay Viewer showing "Verified OK" for the README — same tooling limitation as T0420; correctness verified via `status_label.cget("text")` assertions instead
+- [ ] T0436 Take and save a screenshot of the Replay Viewer showing "TAMPERED" against a deliberately corrupted test log — same limitation; covered by `test_replay_gui_shows_tampered_in_red_at_the_tampered_step`
+- [x] T0437 Package the Replay Viewer so it can be run independently from the live match code — `python -m police_thief replay`, verified to construct and render correctly standalone
 
 ### I.3 Gmail API OAuth 2.0 Setup
 - [ ] T0438 Create/select a Google Cloud project for the cop agent's Gmail integration
@@ -1187,3 +1187,4 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - Chapter 4 (dynamic pheromone trails) — 12 more tasks checked in Section F.1 only (emission/decay mechanics). Section F.2 onward (belief map, hint parsing, LLM integration, deception) is deliberately untouched: `docs/tasks.md` scopes that content to Chapter 6, even though this TODO's own stage grouping (F, "Language + Scent") bundles it together with scent. One genuine, documented rulebook tension was found and resolved via the academic-freedom-on-contradiction clause (T0277) rather than silently papered over. See `ProgressDoc.md` and `docs/PRD_pheromone_scent.md`.
 - Chapter 5 (cryptographic security & Step-0) — 28 more tasks checked across Section H.1, H.4-H.6. All of H.2 (four-step network protocol wiring), most of H.3 (live log recording/technical-loss wiring), H.7, and H.8's live-match milestones are deliberately deferred to Chapter 8 (Orchestrator/legal state machine) — this chapter builds the crypto *primitives* only, not their network enforcement. A real bug was found and fixed in Windows RAM detection along the way. See `ProgressDoc.md` and `docs/PRD_commit_reveal_crypto.md`.
 - Chapter 6 (strategy module & decision-making) — 55 more tasks checked across Section E (E.1-E.2, E.3/E.4's "decided not to pursue" entries, E.5-E.7) and Section F.2-F.6 (belief map, hints, bluff detection). Real LLM provider integration (ollama/claude_api/claude_cli), trust-weighted hint fusion into the belief map, and network/live-match wiring are deliberately out of scope, each with inline rationale. The headline deliverable is `tests/integration/test_strategy_pipeline.py`: two real brains play and capture using only their own belief maps, never touching the opponent's true position. See `ProgressDoc.md` and `docs/PRD_strategy_module.md`.
+- Chapter 7 (GUI & Replay Simulator) — 25 more tasks checked across Section I.1-I.2. The Replay Viewer's crypto verification reuses Chapter 5's `verify()`/`audit_log()` directly rather than re-implementing it. Both GUI layers achieved 100% test coverage using real (not mocked) Tkinter widgets — a session-scoped root fixture was needed after discovering Tkinter cannot reliably create/destroy many `Tk()` instances in one process. Screenshots (T0420/T0435/T0436) could not be produced in this session (no native-window-capture tool available) and remain a manual step before submission. See `ProgressDoc.md` and `docs/PRD_gui_replay.md`.
