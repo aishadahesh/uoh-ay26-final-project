@@ -183,4 +183,38 @@ ruff check: All checks passed!
 
 **Tasks checked off:** `docs/TODO.md` Sections H.1, H.4, H.5, H.6 (mostly complete), plus scattered items in H.3 — 28 of the ~48 tasks in Section H. The rest (H.2 entirely, most of H.3, H.7, H.8's live-match milestones) are explicitly deferred to Chapter 8, with inline rationale rather than silent gaps.
 
-**Status:** awaiting review before committing. Next up — Chapter 6 (strategy module & decision-making).
+**Status:** committed (5 commits: crypto primitives, Step-0, config fingerprinting, tests, docs).
+
+---
+
+### Chapter 6 — Strategy Module & Decision-Making
+
+**What this chapter covers (`docs/tasks.md` §7):** the strategy module is the boundary between "a generic communication component" and "a thinking agent" — a separate `BrainBase` interface, selected via config (`[strategy] cop_class`/`thief_class`), whose movement decision-authority is architecturally guaranteed to stay with the algorithm, never an LLM. A Bayesian belief map turns Chapter 4's raw scent into a probabilistic guess about the opponent's location, using the mandatory Manhattan-distance formula to pick a move toward or away from that guess. The LLM's role, if used at all, is text-only — this project implements only the zero-token `template` provider.
+
+**What was implemented:**
+- `domain/belief.py::BeliefMap` — uniform prior over open (non-blocked) cells, `update_from_scent` (posterior ∝ prior × scent-derived likelihood, renormalized), `arg_max()`. Blocked cells are excluded from the distribution entirely, not just zeroed.
+- `domain/heuristics.py` — extracted `manhattan_distance`/`greedy_manhattan_move` as a shared helper, refactoring Chapter 3/4's `move_toward_policy`/`move_away_policy` to use it rather than duplicating the search loop (DRY). Reproduces the rulebook's own worked example exactly (`D((2,2),(5,5))=6`).
+- `domain/strategy/brain_base.py` + `manhattan_brain.py` — `BrainBase` (abstract `_decide_move`, optional `_pick_move`) and `ManhattanHeuristicBrain`, the team's chosen baseline per `docs/PLAN.md` ADR-010. Neither method's signature can accept an LLM handle or hint text — a structural guarantee, not a convention.
+- `shared/config.py::load_strategy_class` — dynamic `importlib`-based loading of `[strategy] cop_class`/`thief_class` (renamed from the rulebook's `police_class` for the same `AgentRole`-consistency reason as Chapter 2's `config/cop/`), defaulting to `ManhattanHeuristicBrain`.
+- `domain/hints.py` — `Hint` (word-limited, `Intent`-tagged), `TemplateHintProvider` (zero-token, deterministic), `parse_claimed_direction`, and `detect_bluff` reproducing Chapter 4's own worked example (a lie about direction, exposed by the truthful scent trail).
+- `docs/PRD_strategy_module.md` — the fifth per-mechanism PRD.
+- Tests: `test_belief.py`, `test_heuristics.py`, `test_strategy.py`, `test_hints.py` (unit), `tests/integration/test_strategy_pipeline.py` — 48 new tests (193 total).
+
+**Quality gate results:**
+```
+193 passed in 7.71s
+TOTAL coverage: 99.65% (required: 85.0%)
+ruff check: All checks passed!
+```
+
+**The headline result — a genuine partial-observability proof, not just plumbing:** `test_strategy_pipeline.py` drives two `ManhattanHeuristicBrain` instances (one per role) through a full match where each side's `_decide_move` call receives *only* its own belief map — itself fed only by that side's own reading of the opponent's scent trail. The opponent's true `Position` is never passed to either brain anywhere in the test; only the test harness (playing the role of "no external judge, just a human observer") uses both real positions to check for capture. The cop's belief converges tightly on the thief's real location, and a genuine capture occurs within the mandatory move budget — proving Chapter 1's Dec-POMDP partial-observability constraint holds architecturally, not merely by convention.
+
+**Two things caught and fixed while building this, same discipline as every prior chapter:**
+1. An early version of the custom-strategy-class-loading test pointed the config at `ManhattanHeuristicBrain` itself as the "custom" class — which would have passed even if `load_strategy_class` were silently broken and always fell back to its own default. Caught before trusting it; fixed by introducing a distinct `DummyCustomBrain` in the test module.
+2. A first attempt at a multi-turn `detect_bluff` test scenario produced a confusing result (a false claim showing *higher* scent than the true direction) because several turns of accumulated path history overlapped near the starting region. Verified empirically (as always, before writing an assertion) that the function is correct for its intended use — assessing a single, isolated turn's move — and documented the multi-turn dilution as an explicit scope limitation rather than silently working around it.
+
+**What was deliberately left undone, and why (see `docs/PRD_strategy_module.md` §3):** real LLM provider integration (`ollama`/`claude_api`/`claude_cli`) requires live external services this project's automated tests should not depend on, and Sec. 6.4.7 explicitly confirms the zero-token `template`-only mode is fully legitimate for an entire league series. Trust-weighted fusion of hints into the belief map, lie-frequency strategy, belief-map diffusion, and barrier-placement timing are all deeper, stateful features better suited once a live multi-turn match loop (Chapter 8) exists to give them something real to accumulate over.
+
+**Tasks checked off:** `docs/TODO.md` Section E (E.1-E.2, E.5-E.7 mostly complete; E.3/E.4 marked as deliberate "decided not to pursue") and Section F.2-F.6 (belief map and bluff detection largely complete; hint/LLM depth explicitly scoped down) — 55 tasks this chapter.
+
+**Status:** awaiting review before committing. Next up — Chapter 7 (GUI & Replay Simulator).

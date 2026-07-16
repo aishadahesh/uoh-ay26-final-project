@@ -282,68 +282,68 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 ## E. Stage 3 — First Strategy Module (Blind: no language, no scent yet)
 
 ### E.1 Strategy Module Boundary
-- [ ] T0216 Create a dedicated strategy module/package, separate from PeerRuntime networking code
-- [ ] T0217 Define BrainBase abstract class with a _decide_move() method
-- [ ] T0218 Add a _pick_move() (or barrier-placement) hook for the cops BrainBase subclass
-- [ ] T0219 Wire PeerRuntime to call into the strategy module exactly once per turn, at the correct pipeline point
-- [ ] T0220 Write unit test: strategy module receives the current known state and returns a legal move
-- [ ] T0221 Write unit test: strategy module never receives full objective state (only local-truth-consistent inputs)
-- [ ] T0222 Add config keys police_class / thief_class in the private TOML strategy section
-- [ ] T0223 Implement dynamic class loading from a package.module:Class string (e.g., via importlib)
-- [ ] T0224 Write unit test: dynamic strategy-class loading correctly instantiates a custom subclass
-- [ ] T0225 Write unit test: fallback to default heuristic brain when no custom class is configured
+- [x] T0216 Create a dedicated strategy module/package, separate from PeerRuntime networking code — `domain/strategy/`
+- [x] T0217 Define BrainBase abstract class with a _decide_move() method
+- [x] T0218 Add a _pick_move() (or barrier-placement) hook for the cops BrainBase subclass
+- [ ] T0219 Wire PeerRuntime to call into the strategy module exactly once per turn, at the correct pipeline point — deferred: no PeerRuntime/Orchestrator exists yet (Chapter 8)
+- [x] T0220 Write unit test: strategy module receives the current known state and returns a legal move
+- [x] T0221 Write unit test: strategy module never receives full objective state (only local-truth-consistent inputs) — the headline `tests/integration/test_strategy_pipeline.py` proof: neither brain's `_decide_move` call ever receives the opponent's true `Position`
+- [x] T0222 Add config keys police_class / thief_class in the private TOML strategy section — named `cop_class`/`thief_class` for consistency with the `AgentRole` enum (same renaming rationale as Chapter 2's `config/cop/`)
+- [x] T0223 Implement dynamic class loading from a package.module:Class string (e.g., via importlib)
+- [x] T0224 Write unit test: dynamic strategy-class loading correctly instantiates a custom subclass — tests that a distinct `DummyCustomBrain` is actually loaded (an earlier draft of this test pointed at `ManhattanHeuristicBrain` itself, which would have passed even if loading were silently broken — caught and fixed before trusting it)
+- [x] T0225 Write unit test: fallback to default heuristic brain when no custom class is configured
 
 ### E.2 Manhattan-Distance Heuristic (baseline/example track)
-- [ ] T0226 Implement Manhattan distance function D = |x_cop - x_target| + |y_cop - y_target|
-- [ ] T0227 Write unit test: Manhattan distance matches hand-computed examples
-- [ ] T0228 Implement greedy-toward-target move selection using Manhattan distance
-- [ ] T0229 Write unit test: greedy heuristic picks a move that strictly decreases distance when possible
-- [ ] T0230 Implement tie-breaking logic when multiple moves yield equal distance reduction
-- [ ] T0231 Implement thief flee heuristic: maximize distance from believed cop position
-- [ ] T0232 Write unit test: flee heuristic increases distance from the cops last known position
+- [x] T0226 Implement Manhattan distance function D = |x_cop - x_target| + |y_cop - y_target| — `domain/heuristics.py`, shared with Chapter 3/4's placeholder policies (DRY refactor)
+- [x] T0227 Write unit test: Manhattan distance matches hand-computed examples — including Sec. 6.3.3's own worked example (`D((2,2),(5,5))=6`)
+- [x] T0228 Implement greedy-toward-target move selection using Manhattan distance
+- [x] T0229 Write unit test: greedy heuristic picks a move that strictly decreases distance when possible
+- [x] T0230 Implement tie-breaking logic when multiple moves yield equal distance reduction — deterministic by fixed iteration order (N,S,E,W); no explicit preference beyond reproducibility, which is what actually matters for a fair match
+- [x] T0231 Implement thief flee heuristic: maximize distance from believed cop position — via `ManhattanHeuristicBrain`'s belief-map-driven `chase=False` path (the placeholder `move_away_policy` from Ch.3/4 still uses the opponent's raw position, by design — see `docs/PRD_strategy_module.md` §3)
+- [x] T0232 Write unit test: flee heuristic increases distance from the cops last known position
 
 ### E.3 Custom/Alternative Algorithm Track (optional, if chosen)
-- [ ] T0233 Decide whether the team will implement a custom pathfinding/planning algorithm instead of or alongside heuristics
-- [ ] T0234 If custom: design the algorithms state representation
-- [ ] T0235 If custom: implement the algorithms core decision function
-- [ ] T0236 If custom: write unit tests validating legality and sane behavior of its output moves
-- [ ] T0237 If custom: benchmark its decision latency per turn against step_deadline_seconds
+- [x] T0233 Decide whether the team will implement a custom pathfinding/planning algorithm instead of or alongside heuristics — decided (docs/PLAN.md ADR-010): the Manhattan-distance heuristic is the chosen baseline; a custom algorithm remains a stretch goal, not pursued this chapter
+- [ ] T0234 If custom: design the algorithms state representation — not applicable, custom track not pursued
+- [ ] T0235 If custom: implement the algorithms core decision function — not applicable
+- [ ] T0236 If custom: write unit tests validating legality and sane behavior of its output moves — not applicable
+- [ ] T0237 If custom: benchmark its decision latency per turn against step_deadline_seconds — not applicable
 
 ### E.4 Reinforcement-Learning Track (optional tool, if chosen)
-- [ ] T0238 Decide whether the team will use RL as one optional strategy tool
-- [ ] T0239 If RL chosen: design the state representation for Q(s,a)
-- [ ] T0240 If RL chosen: implement a Q-table (or function-approximator) storage structure
-- [ ] T0241 If RL chosen: implement the Bellman update Q(s,a) += alpha times reward plus gamma times max next Q minus current Q
-- [ ] T0242 If RL chosen: implement epsilon-greedy action selection
-- [ ] T0243 If RL chosen: implement a training loop against a scripted/self-play opponent
-- [ ] T0244 If RL chosen: implement a decay schedule for epsilon over training episodes
-- [ ] T0245 If RL chosen: implement checkpointing/saving of learned Q-values
-- [ ] T0246 If RL chosen: implement loading of a pretrained policy at match start
-- [ ] T0247 If RL chosen: write unit test verifying the Q-update math against a hand-computed example
-- [ ] T0248 If RL chosen: log learning-curve data (episode vs. cumulative reward) for later reporting
-- [ ] T0249 If RL chosen: produce a learning-curve plot for the academic README
-- [ ] T0250 If RL chosen: verify the final trained policy still only ever outputs legal moves
-- [ ] T0251 If RL chosen: document that RL is one optional tool among several, not a course requirement, in the README
+- [x] T0238 Decide whether the team will use RL as one optional strategy tool — decided (docs/PLAN.md ADR-010): not pursued; Sec. 6.2.1 explicitly confirms RL is optional, not required
+- [ ] T0239 If RL chosen: design the state representation for Q(s,a) — not applicable
+- [ ] T0240 If RL chosen: implement a Q-table (or function-approximator) storage structure — not applicable
+- [ ] T0241 If RL chosen: implement the Bellman update Q(s,a) += alpha times reward plus gamma times max next Q minus current Q — not applicable
+- [ ] T0242 If RL chosen: implement epsilon-greedy action selection — not applicable
+- [ ] T0243 If RL chosen: implement a training loop against a scripted/self-play opponent — not applicable
+- [ ] T0244 If RL chosen: implement a decay schedule for epsilon over training episodes — not applicable
+- [ ] T0245 If RL chosen: implement checkpointing/saving of learned Q-values — not applicable
+- [ ] T0246 If RL chosen: implement loading of a pretrained policy at match start — not applicable
+- [ ] T0247 If RL chosen: write unit test verifying the Q-update math against a hand-computed example — not applicable
+- [ ] T0248 If RL chosen: log learning-curve data (episode vs. cumulative reward) for later reporting — not applicable
+- [ ] T0249 If RL chosen: produce a learning-curve plot for the academic README — not applicable
+- [ ] T0250 If RL chosen: verify the final trained policy still only ever outputs legal moves — not applicable
+- [x] T0251 If RL chosen: document that RL is one optional tool among several, not a course requirement, in the README — documented in `docs/PRD_strategy_module.md` §1 and here regardless of the choice not to pursue it
 
 ### E.5 Barrier-Placement Strategy (Cop)
-- [ ] T0252 Implement a barrier-placement policy function distinct from movement policy
-- [ ] T0253 Implement a simple corner-the-thief barrier heuristic (progressively block flanking cells)
-- [ ] T0254 Write unit test: barrier placement never targets a cell more than one step from the cop
-- [ ] T0255 Write unit test: barrier budget is respected by the placement policy (stops placing at zero budget)
-- [ ] T0256 Tune barrier-placement timing (early game vs. late game) and document reasoning
+- [x] T0252 Implement a barrier-placement policy function distinct from movement policy — `ManhattanHeuristicBrain._pick_move`
+- [x] T0253 Implement a simple corner-the-thief barrier heuristic (progressively block flanking cells) — simplified to "barrier the neighbor closest to the belief peak" (single-step greedy, not a multi-turn cornering plan); a deeper flanking strategy is a natural future refinement, not built now
+- [x] T0254 Write unit test: barrier placement never targets a cell more than one step from the cop
+- [x] T0255 Write unit test: barrier budget is respected by the placement policy (stops placing at zero budget)
+- [ ] T0256 Tune barrier-placement timing (early game vs. late game) and document reasoning — not built: the brain attempts a barrier placement every turn budget-permitting, with no early/late-game timing logic yet
 
 ### E.6 Decision Pipeline Wiring & Determinism
-- [ ] T0257 Ensure the actual move-selection computation is always pure algorithmic/deterministic code (no LLM call in this stage)
-- [ ] T0258 Add a hard boundary/interface so a later LLM verbal layer cannot influence the move return value
-- [ ] T0259 Add a code-review checklist item: no LLM output is ever assigned to the move variable
-- [ ] T0260 Add logging of every decision made by the strategy module (state in, move out) for later debugging
+- [x] T0257 Ensure the actual move-selection computation is always pure algorithmic/deterministic code (no LLM call in this stage)
+- [x] T0258 Add a hard boundary/interface so a later LLM verbal layer cannot influence the move return value — `BrainBase`'s method signatures structurally exclude any hint/LLM input (docs/PRD_strategy_module.md §2)
+- [x] T0259 Add a code-review checklist item: no LLM output is ever assigned to the move variable — realized as a structural guarantee (T0258) rather than a manual checklist item, which is stronger
+- [ ] T0260 Add logging of every decision made by the strategy module (state in, move out) for later debugging — deferred: no logging infrastructure wired yet (Chapter 8's Log Manager)
 
 ### E.7 Stage-3 Milestone
-- [ ] T0261 Confirm milestone: given a known target position, the computing agent executes the shortest legal path with no manual intervention
-- [ ] T0262 Run a full two-process match using real (non-placeholder) strategies end-to-end
-- [ ] T0263 Write integration test: match completes with sensible (non-random-looking) tactical behavior from both sides
-- [ ] T0264 Document Stage-3 decisions in PRD/03-strategy-module.md
-- [ ] T0265 Record chosen strategy track (heuristic / custom / RL) rationale for the academic README draft
+- [x] T0261 Confirm milestone: given a known target position, the computing agent executes the shortest legal path with no manual intervention
+- [ ] T0262 Run a full two-process match using real (non-placeholder) strategies end-to-end — deferred: this implies a live networked two-process match (Chapter 8); the strategy pipeline itself is proven single-process
+- [x] T0263 Write integration test: match completes with sensible (non-random-looking) tactical behavior from both sides — `tests/integration/test_strategy_pipeline.py` (single-process; two-process/networked wiring is Chapter 8)
+- [x] T0264 Document Stage-3 decisions in PRD/03-strategy-module.md — written as `docs/PRD_strategy_module.md`, per the naming reconciliation in `docs/PRD.md` §7
+- [x] T0265 Record chosen strategy track (heuristic / custom / RL) rationale for the academic README draft — documented in `docs/PRD_strategy_module.md` and `docs/PLAN.md` ADR-010; final README integration is a later, end-of-project step
 
 ---
 
@@ -367,65 +367,65 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [ ] T0280 Add a debug visualization/printout of the scent grid for development purposes — deferred to Chapter 7's GUI work, where a real rendering surface already needs to exist
 
 ### F.2 Belief Map Construction
-- [ ] T0281 Define `BeliefMap` structure: probability distribution `b(s)` over board cells
-- [ ] T0282 Implement Bayesian-style update of `b(s)` incorporating the observed scent field
-- [ ] T0283 Implement Bayesian-style update of `b(s)` incorporating the opponent's verbal hint (weighted by trust)
-- [ ] T0284 Implement `arg max_s b(s)` extraction (current best-guess opponent location)
-- [ ] T0285 Write unit test: belief map updates correctly given a synthetic scent snapshot
-- [ ] T0286 Write unit test: belief map normalizes to a valid probability distribution (sums to 1) after each update
-- [ ] T0287 Write unit test: blocked/barrier cells always carry zero belief
-- [ ] T0288 Implement belief-map decay/diffusion over time when no new evidence arrives
-- [ ] T0289 Implement a trust-weighting mechanism for verbal hints vs. the always-trustworthy scent channel
-- [ ] T0290 Write unit test: a caught lie (hint contradicts scent trail) reduces future trust weight assigned to that opponent's hints
-- [ ] T0291 Implement the worked lie-detection example as a regression test (south-east scent trail vs. false north claim)
+- [x] T0281 Define `BeliefMap` structure: probability distribution `b(s)` over board cells
+- [x] T0282 Implement Bayesian-style update of `b(s)` incorporating the observed scent field — posterior proportional to prior times (scent intensity + epsilon), renormalized
+- [ ] T0283 Implement Bayesian-style update of `b(s)` incorporating the opponent's verbal hint (weighted by trust) — not built: `detect_bluff` exists as a standalone classifier (F.5), but nothing yet feeds a hint back into `BeliefMap`'s own probability update
+- [x] T0284 Implement `arg max_s b(s)` extraction (current best-guess opponent location)
+- [x] T0285 Write unit test: belief map updates correctly given a synthetic scent snapshot
+- [x] T0286 Write unit test: belief map normalizes to a valid probability distribution (sums to 1) after each update
+- [x] T0287 Write unit test: blocked/barrier cells always carry zero belief
+- [ ] T0288 Implement belief-map decay/diffusion over time when no new evidence arrives — not built as an independent mechanism: belief indirectly tracks scent's own decay when re-updated from an already-decayed field, but there is no belief-specific diffusion/uncertainty-growth model
+- [ ] T0289 Implement a trust-weighting mechanism for verbal hints vs. the always-trustworthy scent channel — not built: a deeper, stateful feature better suited once a live multi-turn match loop (Chapter 8) exists to accumulate trust over real games
+- [ ] T0290 Write unit test: a caught lie (hint contradicts scent trail) reduces future trust weight assigned to that opponent's hints — not applicable; no trust-weight state exists yet (see T0289)
+- [x] T0291 Implement the worked lie-detection example as a regression test (south-east scent trail vs. false north claim) — `test_detect_bluff_catches_a_lie_reproducing_the_worked_example`
 
 ### F.3 Natural-Language Hint Generation & Parsing
-- [ ] T0292 Define the free-text hint schema/field in the move-exchange message
-- [ ] T0293 Implement `[hint word limit]` enforcement (default 15 words) on outgoing hints
-- [ ] T0294 Implement `[game arena]` theme substitution into hint text (e.g., "New York" landmarks) or empty-string fallback
-- [ ] T0295 Write unit test: generated hint never exceeds the configured word limit
-- [ ] T0296 Implement an `Intent` flag alongside every hint marking it as truthful or a deliberate lie
-- [ ] T0297 Write unit test: `Intent` flag is always set before the hint is sent (never left undefined)
-- [ ] T0298 Implement hint-parsing logic on the receiving side to extract usable directional/positional signal
-- [ ] T0299 Write unit test: hint parser handles a variety of phrasing styles without crashing
-- [ ] T0300 Write unit test: hint parser gracefully handles nonsensical or malformed text (no signal extracted, no crash)
-- [ ] T0301 Prohibit direct numeric coordinate leakage in generated hint text (no raw grid coordinates)
-- [ ] T0302 Write unit test/lint check: hint text never contains a raw coordinate pair pattern
+- [ ] T0292 Define the free-text hint schema/field in the move-exchange message — `hints.py::Hint` exists standalone; wiring it into an actual MCP move-exchange message is Chapter 8
+- [x] T0293 Implement `[hint word limit]` enforcement (default 15 words) on outgoing hints
+- [ ] T0294 Implement `[game arena]` theme substitution into hint text (e.g., "New York" landmarks) or empty-string fallback — not built: hints use plain direction phrases ("I moved north."), no thematic flavor text; a narrative nice-to-have, not core to the mechanism
+- [x] T0295 Write unit test: generated hint never exceeds the configured word limit
+- [x] T0296 Implement an `Intent` flag alongside every hint marking it as truthful or a deliberate lie — `Hint.intent_truthful`
+- [x] T0297 Write unit test: `Intent` flag is always set before the hint is sent (never left undefined) — structurally guaranteed: `Hint` is a frozen dataclass with `intent_truthful` as a required (non-optional) field
+- [x] T0298 Implement hint-parsing logic on the receiving side to extract usable directional/positional signal — `parse_claimed_direction`
+- [ ] T0299 Write unit test: hint parser handles a variety of phrasing styles without crashing — partially: `parse_claimed_direction` is strict template-exact matching (a dictionary lookup over 5 known phrases), not general NLP; "variety of phrasing" in the sense of synonyms/free text is out of scope since only our own deterministic templates are generated on our side
+- [x] T0300 Write unit test: hint parser gracefully handles nonsensical or malformed text (no signal extracted, no crash) — `test_parse_claimed_direction_returns_none_for_unrecognized_text`
+- [x] T0301 Prohibit direct numeric coordinate leakage in generated hint text (no raw grid coordinates) — true by construction (fixed phrase strings, no interpolated position values)
+- [x] T0302 Write unit test/lint check: hint text never contains a raw coordinate pair pattern — `test_template_phrases_never_contain_a_raw_coordinate_pattern`
 
 ### F.4 LLM Integration for the Verbal Layer Only
-- [ ] T0303 Confirm and document: the LLM is used exclusively for hint text generation and opponent-hint interpretation, never for move selection
-- [ ] T0304 Implement `[trash_talk] provider` config switch: template / ollama / claude_api / claude_cli
-- [ ] T0305 Implement `template` provider: deterministic pre-written phrases, zero tokens
-- [ ] T0306 Implement `ollama` provider: call local model at `localhost:11434`
-- [ ] T0307 Implement `claude_api` provider: call Anthropic API with a small/cheap model
-- [ ] T0308 Implement `claude_cli` provider: shell out to `claude -p` via Claude Code CLI
-- [ ] T0309 Implement `every_n_steps` throttling to reduce LLM invocation frequency
-- [ ] T0310 Implement `step_deadline_seconds` timeout around every LLM call
-- [ ] T0311 Write unit test: LLM call exceeding its deadline is aborted/falls back gracefully
-- [ ] T0312 Implement a fallback path: if the configured LLM provider is unreachable, fall back to `template` mode rather than crash
-- [ ] T0313 Write integration test: fallback path triggers correctly when Ollama/API is deliberately made unreachable
-- [ ] T0314 Implement token-usage counting for every LLM call (for later Step-0/budget reporting)
-- [ ] T0315 Write unit test: token counter accumulates correctly across a full match
-- [ ] T0316 Enforce `[token budget per series]` (default ~200000) as a soft cap with warning/log when approached
-- [ ] T0317 Implement prompt templates for hint generation (bluff/deception composition)
-- [ ] T0318 Implement prompt templates for opponent-hint psychological analysis (bluff classifier / behavioral profiler)
-- [ ] T0319 Write unit test: prompt construction never embeds the agent's own true hidden state in a way that could leak via a bug
-- [ ] T0320 Document the LLM integration architecture (which layer calls the model, how output flows back) in `PRD/04-language-scent.md`
+- [x] T0303 Confirm and document: the LLM is used exclusively for hint text generation and opponent-hint interpretation, never for move selection — documented extensively in `brain_base.py`/`hints.py` docstrings and `docs/PRD_strategy_module.md`
+- [ ] T0304 Implement `[trash_talk] provider` config switch: template / ollama / claude_api / claude_cli — the config key exists (commented, defaulting to `template`) in `config/{cop,thief}/game.toml`, but no loader/dispatch code reads it yet
+- [x] T0305 Implement `template` provider: deterministic pre-written phrases, zero tokens — `TemplateHintProvider`
+- [ ] T0306 Implement `ollama` provider: call local model at `localhost:11434` — deliberately not built: requires a live local service this project's automated test suite should not depend on (Sec. 6.4.7 confirms `template`-only play is fully legitimate)
+- [ ] T0307 Implement `claude_api` provider: call Anthropic API with a small/cheap model — deliberately not built, same reasoning (live external API dependency)
+- [ ] T0308 Implement `claude_cli` provider: shell out to `claude -p` via Claude Code CLI — deliberately not built, same reasoning
+- [ ] T0309 Implement `every_n_steps` throttling to reduce LLM invocation frequency — not applicable yet: no live turn loop exists to throttle (Chapter 8)
+- [ ] T0310 Implement `step_deadline_seconds` timeout around every LLM call — not applicable: no real LLM call exists yet to time out
+- [ ] T0311 Write unit test: LLM call exceeding its deadline is aborted/falls back gracefully — not applicable, same reason
+- [ ] T0312 Implement a fallback path: if the configured LLM provider is unreachable, fall back to `template` mode rather than crash — not applicable: only `template` is implemented, so there is nothing to fall back *from*
+- [ ] T0313 Write integration test: fallback path triggers correctly when Ollama/API is deliberately made unreachable — not applicable, same reason
+- [x] T0314 Implement token-usage counting for every LLM call (for later Step-0/budget reporting) — `TokenUsage` (Chapter 5's `services/step0.py`); not yet wired to a real LLM call since none exists
+- [x] T0315 Write unit test: token counter accumulates correctly across a full match — covered at the unit level in Chapter 5's `test_step0.py`; full-match live integration is pending Chapter 8
+- [ ] T0316 Enforce `[token budget per series]` (default ~200000) as a soft cap with warning/log when approached — not built
+- [ ] T0317 Implement prompt templates for hint generation (bluff/deception composition) — not applicable: the implemented `template` provider needs no LLM prompts at all, by design (zero tokens)
+- [ ] T0318 Implement prompt templates for opponent-hint psychological analysis (bluff classifier / behavioral profiler) — not applicable: `detect_bluff` is a deterministic heuristic, not an LLM-based profiler
+- [ ] T0319 Write unit test: prompt construction never embeds the agent's own true hidden state in a way that could leak via a bug — not applicable, no prompts exist
+- [x] T0320 Document the LLM integration architecture (which layer calls the model, how output flows back) in `PRD/04-language-scent.md` — written as `docs/PRD_strategy_module.md` §3, per the naming reconciliation in `docs/PRD.md` §7
 
 ### F.5 Deception & Psychological Layer
-- [ ] T0321 Design a strategy for deciding when to lie vs. tell the truth in verbal hints
-- [ ] T0322 Implement randomized or strategic lie-frequency logic (avoid being either always-truthful or always-lying, both exploitable)
-- [ ] T0323 Implement a simple opponent-hint "bluff classifier" heuristic (cross-reference hint against scent)
-- [ ] T0324 Write unit test: bluff classifier flags a hint contradicted by the scent trail
-- [ ] T0325 Write unit test: bluff classifier does not falsely flag a truthful, scent-consistent hint
+- [ ] T0321 Design a strategy for deciding when to lie vs. tell the truth in verbal hints — not built: `TemplateHintProvider.generate` takes `tell_truth` as a caller-supplied parameter; the mechanism to produce either exists, the autonomous policy for choosing between them does not
+- [ ] T0322 Implement randomized or strategic lie-frequency logic (avoid being either always-truthful or always-lying, both exploitable) — not built, same reason as T0321
+- [x] T0323 Implement a simple opponent-hint "bluff classifier" heuristic (cross-reference hint against scent) — `detect_bluff`
+- [x] T0324 Write unit test: bluff classifier flags a hint contradicted by the scent trail
+- [x] T0325 Write unit test: bluff classifier does not falsely flag a truthful, scent-consistent hint
 
 ### F.6 Stage-4 Milestone
-- [ ] T0326 Confirm milestone: free-form hint reporting subject to the word-count limit works end-to-end
-- [ ] T0327 Confirm milestone: a scent map is computed and viewable/loggable
-- [ ] T0328 Confirm milestone: the LLM produces a hint (true or lie) every step without crashing the match
-- [ ] T0329 Run a full match with real scent + real LLM-generated hints end-to-end with no crash
-- [ ] T0330 Verify belief maps visibly track approximate opponent location better than random guessing over a test match
-- [ ] T0331 Document Stage-4 decisions and worked examples in `PRD/04-language-scent.md`
+- [ ] T0326 Confirm milestone: free-form hint reporting subject to the word-count limit works end-to-end — works as a standalone mechanism; "end-to-end" in a live match/network sense awaits Chapter 8
+- [ ] T0327 Confirm milestone: a scent map is computed and viewable/loggable — computed since Chapter 4; "viewable/loggable" (GUI/logging) is Chapter 7/8
+- [ ] T0328 Confirm milestone: the LLM produces a hint (true or lie) every step without crashing the match — not applicable: no live match loop calls the hint provider every step yet
+- [ ] T0329 Run a full match with real scent + real LLM-generated hints end-to-end with no crash — not built, same reason
+- [x] T0330 Verify belief maps visibly track approximate opponent location better than random guessing over a test match — `test_cop_belief_converges_toward_the_true_thief_position_over_time`, and the full capture achieved via belief alone in `tests/integration/test_strategy_pipeline.py`
+- [x] T0331 Document Stage-4 decisions and worked examples in `PRD/04-language-scent.md` — written as `docs/PRD_strategy_module.md` (this chapter's belief/hint content) alongside `docs/PRD_pheromone_scent.md` (Chapter 4's scent-only content)
 
 ---
 
@@ -1186,3 +1186,4 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - Chapter 3 (board physics, movement, barriers, capture & scoring) — 73 more tasks checked across Section C.0–C.7. A handful (T0124, T0125, T0155, T0156, T0166) are explicitly left unchecked with inline rationale — mostly because they depend on a barrier-*placing* strategy or a match log that don't exist until Chapter 6/Chapter 5-9 respectively. See `ProgressDoc.md` and `docs/PRD_board_physics.md` for the full write-up.
 - Chapter 4 (dynamic pheromone trails) — 12 more tasks checked in Section F.1 only (emission/decay mechanics). Section F.2 onward (belief map, hint parsing, LLM integration, deception) is deliberately untouched: `docs/tasks.md` scopes that content to Chapter 6, even though this TODO's own stage grouping (F, "Language + Scent") bundles it together with scent. One genuine, documented rulebook tension was found and resolved via the academic-freedom-on-contradiction clause (T0277) rather than silently papered over. See `ProgressDoc.md` and `docs/PRD_pheromone_scent.md`.
 - Chapter 5 (cryptographic security & Step-0) — 28 more tasks checked across Section H.1, H.4-H.6. All of H.2 (four-step network protocol wiring), most of H.3 (live log recording/technical-loss wiring), H.7, and H.8's live-match milestones are deliberately deferred to Chapter 8 (Orchestrator/legal state machine) — this chapter builds the crypto *primitives* only, not their network enforcement. A real bug was found and fixed in Windows RAM detection along the way. See `ProgressDoc.md` and `docs/PRD_commit_reveal_crypto.md`.
+- Chapter 6 (strategy module & decision-making) — 55 more tasks checked across Section E (E.1-E.2, E.3/E.4's "decided not to pursue" entries, E.5-E.7) and Section F.2-F.6 (belief map, hints, bluff detection). Real LLM provider integration (ollama/claude_api/claude_cli), trust-weighted hint fusion into the belief map, and network/live-match wiring are deliberately out of scope, each with inline rationale. The headline deliverable is `tests/integration/test_strategy_pipeline.py`: two real brains play and capture using only their own belief maps, never touching the opponent's true position. See `ProgressDoc.md` and `docs/PRD_strategy_module.md`.
