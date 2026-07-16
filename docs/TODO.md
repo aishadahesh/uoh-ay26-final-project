@@ -271,11 +271,11 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [ ] T0210 Benchmark round-trip latency of a localhost MCP call as a sanity baseline before adding tunneling overhead
 
 ### D.7 Stage-2 Milestone
-- [ ] T0211 Confirm milestone: a geometric message sent from agent A over localhost is received and decoded correctly at agent B
-- [ ] T0212 Document Stage-2 architecture decisions in PRD/02-mcp-infra.md
-- [ ] T0213 Run a full two-process match end-to-end with no crash, using the Stage-1 placeholder policies over the network
-- [ ] T0214 Confirm identical scoring/log output vs. the single-process Stage-1 version (parity check)
-- [ ] T0215 Tag this milestone commit locally (not yet the final submission tag) for traceability
+- [x] T0211 Confirm milestone: a geometric message sent from agent A over localhost is received and decoded correctly at agent B — `tests/integration/test_mcp_http_roundtrip.py`, re-run in Chapter 10's milestone-reconciliation pass to confirm it's still true today, not just at Chapter 2's time
+- [x] T0212 Document Stage-2 architecture decisions in PRD/02-mcp-infra.md — written as `docs/PRD_fastmcp_networking.md` in Chapter 10, per the naming reconciliation in `docs/PRD.md` §7. This was a genuine gap: every other chapter got its PRD in the same session it was built, but Chapter 2's was never written until this milestone cross-check turned it up
+- [ ] T0213 Run a full two-process match end-to-end with no crash, using the Stage-1 placeholder policies over the network — still not done: Chapter 2 proved one HTTP round trip, Chapter 8's Orchestrator proved one real turn against a real server, but no continuous, multi-turn, two-sided match loop exists yet (see `docs/PRD_reliability_layer.md` §3)
+- [ ] T0214 Confirm identical scoring/log output vs. the single-process Stage-1 version (parity check) — blocked on T0213
+- [ ] T0215 Tag this milestone commit locally (not yet the final submission tag) for traceability — deferred: git tagging is a submission-time action per `docs/tasks.md` App. C, not something to do mid-development without the user's explicit direction
 
 ---
 
@@ -421,7 +421,7 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 
 ### F.6 Stage-4 Milestone
 - [ ] T0326 Confirm milestone: free-form hint reporting subject to the word-count limit works end-to-end — works as a standalone mechanism; "end-to-end" in a live match/network sense awaits Chapter 8
-- [ ] T0327 Confirm milestone: a scent map is computed and viewable/loggable — computed since Chapter 4; "viewable/loggable" (GUI/logging) is Chapter 7/8
+- [ ] T0327 Confirm milestone: a scent map is computed and viewable/loggable — computed since Chapter 4, and the *derived* belief heatmap is viewable since Chapter 7's `LiveGUI`; still not "loggable," though — `LogManager`/`LogEntry` (Chapter 8) only ever record `{state, move, intent, nonce, h_commit}`, never the raw scent field itself
 - [ ] T0328 Confirm milestone: the LLM produces a hint (true or lie) every step without crashing the match — not applicable: no live match loop calls the hint provider every step yet
 - [ ] T0329 Run a full match with real scent + real LLM-generated hints end-to-end with no crash — not built, same reason
 - [x] T0330 Verify belief maps visibly track approximate opponent location better than random guessing over a test match — `test_cop_belief_converges_toward_the_true_thief_position_over_time`, and the full capture achieved via belief alone in `tests/integration/test_strategy_pipeline.py`
@@ -430,6 +430,8 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 ---
 
 ## G. Stage 5 — Cloud Exposure & Tunneling (real cross-machine P2P)
+
+**Note (Chapter 10 milestone reconciliation):** every task below is entirely unchecked, and genuinely so — this section requires installing and running a real tunneling tool (`ngrok`/`Localtonet`), a second physical or teammate's machine, and a live cross-machine network session, none of which exist inside an automated coding session. The code-side prerequisite is already in place (`services/mcp_server.py::run_peer_server` binds `0.0.0.0`, not `127.0.0.1`, specifically so a tunnel can be added with no code change — see `docs/PRD_fastmcp_networking.md` §3). This is flagged as a manual step for you, the same category of gap as Chapter 9's deferred Gmail OAuth setup.
 
 ### G.1 Tunnel Setup
 - [ ] T0332 Configure `ngrok http <cop_port>` and confirm a public HTTPS URL is issued
@@ -517,13 +519,13 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [ ] T0392 Write integration test: match refuses to start without both sides' valid Step-0 declarations — deferred to Chapter 8, same reason
 
 ### H.7 Replay-Ready Log Format
-- [ ] T0393 Ensure the log format produced here is directly consumable by the Stage-7 Replay Viewer — `LogEntry`'s shape is designed with this in mind, but cannot be confirmed against a Replay Viewer that doesn't exist yet (Chapter 7)
-- [ ] T0394 Write a schema/contract test verifying log fields match what the Replay Viewer expects — same reason, deferred to Chapter 7
+- [x] T0393 Ensure the log format produced here is directly consumable by the Stage-7 Replay Viewer — confirmed in Chapter 7: `domain/replay.py` imports and uses `LogEntry`/`audit_log` directly, no adapter/translation layer needed
+- [x] T0394 Write a schema/contract test verifying log fields match what the Replay Viewer expects — `test_replay_viewer_against_a_real_commit_reveal_sealed_multi_turn_log` (Chapter 7), building a real multi-turn log via actual `commit()` calls and replaying it end-to-end
 
 ### H.8 Stage-6 Milestone
-- [ ] T0395 Confirm milestone: moves must be committed via Commit and only then revealed via Reveal, with Nonce — the crypto primitives are ready; live turn-by-turn enforcement is Chapter 8
-- [ ] T0396 Confirm milestone: correct Step-0 hardware declaration exchanged and verified — signing/verifying works standalone; network *exchange* is Chapter 8
-- [ ] T0397 Run a full match with the complete crypto protocol active end-to-end with no crash — no live match uses the crypto layer yet
+- [ ] T0395 Confirm milestone: moves must be committed via Commit and only then revealed via Reveal, with Nonce — updated status post-Chapter-8: the Orchestrator now sends a real commitment (`H_commit`) over a real network call and self-verifies it, but does not yet transmit a separate Reveal message (nonce + move) to the opponent at all — only one side's commitment ever crosses the wire, so the full two-sided Commit-then-Reveal *exchange* the milestone describes is still not implemented, only the Commit half plus local self-verification
+- [ ] T0396 Confirm milestone: correct Step-0 hardware declaration exchanged and verified — still not done: `Step0Declaration`/`sign_step0`/`verify_step0_signature` (Chapter 5) work correctly in isolation, but the Orchestrator (Chapter 8) has no Step-0 exchange step at all yet — no code path sends or receives a `SignedStep0` over the network
+- [ ] T0397 Run a full match with the complete crypto protocol active end-to-end with no crash — still blocked on the same missing continuous match loop noted throughout Chapters 8-10
 - [ ] T0398 Deliberately inject a tampering bug and confirm the match is correctly disqualified — done at the primitive level (`audit_log` correctly catches injected tampering); "the match is disqualified" implies live `MatchOutcome` wiring, which is Chapter 8
 - [x] T0399 Document Stage-6 decisions in `PRD/06-security-crypto.md` — written as `docs/PRD_commit_reveal_crypto.md`, per the naming reconciliation in `docs/PRD.md` §7
 - [ ] T0400 Peer-review the cryptographic code with your teammate for subtle bugs (constant-time comparisons, nonce reuse, serialization consistency) — genuinely requires the human teammate's involvement; not something this session can complete alone
@@ -888,13 +890,13 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [ ] T0673 Verify the README renders correctly on GitHub's web UI (formatting, images, links)
 
 ### N.2 PRD Files (7 layers)
-- [ ] T0674 Finalize `PRD/01-base-logic.md`
-- [ ] T0675 Finalize `PRD/02-mcp-infra.md`
-- [ ] T0676 Finalize `PRD/03-strategy-module.md`
-- [ ] T0677 Finalize `PRD/04-language-scent.md`
-- [ ] T0678 Finalize `PRD/05-cloud-tunnel.md`
-- [ ] T0679 Finalize `PRD/06-security-crypto.md`
-- [ ] T0680 Finalize `PRD/07-reporting-gui.md`
+- [x] T0674 Finalize `PRD/01-base-logic.md` — `docs/PRD_board_physics.md` (Chapter 3)
+- [x] T0675 Finalize `PRD/02-mcp-infra.md` — `docs/PRD_fastmcp_networking.md` (Chapter 10 — a genuine gap caught by this chapter's own milestone-reconciliation pass; every other PRD was written in the same session as its mechanism, this one wasn't, until now)
+- [x] T0676 Finalize `PRD/03-strategy-module.md` — `docs/PRD_strategy_module.md` (Chapter 6)
+- [x] T0677 Finalize `PRD/04-language-scent.md` — split across `docs/PRD_pheromone_scent.md` (Chapter 4, scent-only) and `docs/PRD_strategy_module.md` §3 (Chapter 6, hints/LLM), since this project's per-mechanism granularity split scent and language/strategy into two documents rather than one
+- [ ] T0678 Finalize `PRD/05-cloud-tunnel.md` — not written: no cloud-tunnel mechanism was ever built (Section G is entirely unchecked; requires real `ngrok`/a second machine), so there is nothing yet to document
+- [x] T0679 Finalize `PRD/06-security-crypto.md` — `docs/PRD_commit_reveal_crypto.md` (Chapter 5)
+- [x] T0680 Finalize `PRD/07-reporting-gui.md` — split across `docs/PRD_gui_replay.md` (Chapter 7), `docs/PRD_reliability_layer.md` (Chapter 8), and `docs/PRD_gmail_gatekeeper.md` (Chapter 9), since this project's per-mechanism PRDs are more granular than the rulebook's own 7-stage grouping
 - [ ] T0681 Cross-reference each PRD file from the README's table of contents
 
 ### N.3 Supporting Documents
@@ -1102,7 +1104,7 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [ ] T0821 Assign clear ownership (cop side vs. thief side vs. shared infra) between the two teammates
 - [ ] T0822 Hold a short recurring sync to review progress against the 7-stage build order
 - [ ] T0823 Track blockers explicitly (e.g., "waiting on opponent team's tunnel URL") separate from code tasks
-- [ ] T0824 Re-triage this TODO list after each stage milestone, marking completed items and re-prioritizing what's left
+- [x] T0824 Re-triage this TODO list after each stage milestone, marking completed items and re-prioritizing what's left — done at the end of every chapter throughout this project (see each chapter's `ProgressDoc.md` entry), and once more explicitly as Chapter 10's own milestone-reconciliation pass: re-verified Stage-2's HTTP round trip still passes, closed the missing `PRD_fastmcp_networking.md` gap, upgraded T0393/T0394/T0327 given Chapter 7/8 work that postdated when they were first left unchecked, and refined the Stage-6 milestone rationale to be precise about what the Orchestrator does and doesn't yet prove
 
 ### S.2 Time & Scope Management
 - [ ] T0825 Estimate a rough calendar date target for completing each of the 7 build stages

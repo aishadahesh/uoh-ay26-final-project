@@ -323,4 +323,28 @@ ruff check: All checks passed!
 
 **Tasks checked off:** `docs/TODO.md` Section I.3-I.9 (I.5/I.6 nearly complete, I.7/I.8 mostly complete, I.3/I.4's OAuth-dependent items and I.9's live-match milestone correctly left unchecked) and Section L.4 (all 4 tasks) — roughly 40 of the ~65 tasks across these sections, each unchecked item left with inline rationale.
 
+**Status:** committed (6 commits: Gatekeeper, JSON reports, Gmail sender, league scoring, tests, docs).
+
+---
+
+### Chapter 10 — Recommended Development Priority Order & Process
+
+**What this chapter covers (`docs/tasks.md` §10):** unlike Chapters 1-9, this chapter introduces no new mechanism of its own — it is the rulebook's own explanation of *why* a complex system must be built in layers (Sec. 10.1's Incremental Delivery principle: narrow the space of possible failures to only the most-recently-added layer, never build the impressive top floor before the foundation is proven), its recommended 7-stage build order (Table 3), and a milestone sign-off checklist (Sec. 10.4.2) that must hold true before advancing each stage. Since this project deliberately builds through `docs/tasks.md`'s own *chapter* order (1, 2, 3, ...) rather than this rulebook's *recommended stage-priority* order (a deviation flagged explicitly in nearly every chapter's `ProgressDoc.md` entry so far), Chapter 10's real, honest work is a **milestone-reconciliation pass**: going stage-by-stage through Table 3 / Sec. 10.4.2's checklist and verifying, empirically, whether each milestone genuinely holds true today — not assuming it does because an earlier chapter's TODO item happened to get checked.
+
+**What this pass found and fixed:**
+- **A genuine, previously-unnoticed gap:** `docs/PRD_fastmcp_networking.md` had been listed as a planned per-mechanism PRD since Chapter 2 (in both `docs/PRD.md` §7 and `docs/PLAN.md`'s repository tree) but was never actually written — every other chapter's mechanism got its PRD in the same session it was built; Chapter 2's did not, and the gap survived seven chapters unnoticed until this reconciliation pass checked `docs/TODO.md`'s T0212/T0675 against the actual `docs/` directory listing and found the file simply didn't exist. Written now as `docs/PRD_fastmcp_networking.md`, but only after re-running Chapter 2's original 20-test suite (`test_mcp_server.py`, `test_mcp_client.py`, `test_config.py`, `test_mcp_http_roundtrip.py`) to confirm the claims it documents are still true today, not just historically — the same "verify empirically before trusting a claim" discipline this project has applied to new code, now applied retroactively to old, unverified documentation debt.
+- **Two milestone items resolved by chapters that hadn't happened yet when they were first left unchecked:** T0393/T0394 (Stage-6's "log format is Replay-Viewer-ready") were correctly unchecked back in Chapter 5, since Chapter 7's Replay Viewer didn't exist yet to confirm against. It exists now, and does consume `LogEntry`/`audit_log` directly with no adapter layer — both items are now honestly checkable. Likewise T0327 (Stage-4's "scent map is viewable") is now partially satisfiable: the belief heatmap derived from scent is viewable via Chapter 7's `LiveGUI`, even though the raw scent field is still not logged anywhere.
+- **One milestone's rationale sharpened, not resolved:** Sec. 10.4.2's Stage-6 criterion ("the move must be committed via Commit and only then revealed via Reveal, with Nonce") was previously marked "crypto primitives ready, live enforcement is Chapter 8" — now that Chapter 8 exists, the honest status is more specific and less complete than that shorthand implied: the Orchestrator sends a real commitment over a real network call and self-verifies it, but never transmits a separate Reveal message (nonce + move) to the opponent at all. Only the Commit half of the four-step protocol actually crosses the wire; the milestone remains unmet, but for a more precise reason than "Chapter 8 doesn't exist yet."
+
+**Quality gate results (re-verified, no source code changed this chapter):**
+```
+326 passed in ~17s
+TOTAL coverage: 99.83% (required: 85.0%)
+ruff check: All checks passed!
+```
+
+**What remains honestly unmet, and why this isn't a contradiction of "build in layers":** Stage 5 (Section G, cloud exposure via `ngrok`/`Localtonet`) is entirely unchecked — it requires a real tunneling tool, a real second machine, and a live cross-machine session, none of which exist inside an automated coding session, the same category of gap as Chapter 9's Gmail OAuth setup. The Stage-2 milestone's "full two-process match... over the network" and the Stage-6 milestone's "full match with the complete crypto protocol active" both remain unmet for the same underlying reason already documented in `docs/PRD_reliability_layer.md` §3: no continuous, multi-turn, two-sided match loop exists yet. None of this contradicts Sec. 10.1's layering principle — each of these gaps is a *later*, well-understood layer (a live match entrypoint; a real OAuth/tunnel setup step) waiting on a *foundation* that is itself already proven correct, which is exactly what staged, incremental delivery is supposed to produce at this point in the project.
+
+**Tasks checked off:** `docs/TODO.md` T0211, T0212, T0393, T0394, T0674-T0677/T0679/T0680, T0824 (10 tasks, mostly *upgrading* earlier-chapter items now provably true rather than net-new work) — plus refined, more precise rationale (no checkbox change) on T0327, T0395, T0396, and a new explanatory header note on Section G. T0213-T0215, T0397, T0678 remain honestly unchecked with reasons tied to the still-missing live match loop and the still-unperformed manual tunnel setup.
+
 **Status:** awaiting review before committing.
