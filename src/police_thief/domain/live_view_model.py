@@ -14,7 +14,7 @@ pattern BrainBase (Chapter 6) uses for the move-decision boundary.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from police_thief.domain.belief import BeliefMap
@@ -60,17 +60,34 @@ class CellView:
 
 @dataclass(frozen=True)
 class LiveViewModel:
-    """Everything the Live GUI needs to render -- and nothing more."""
+    """Everything the Live GUI needs to render -- and nothing more.
+
+    `role_label`/`visited` are additive, keyword-only, defaulted fields (see
+    `build_live_view_model`) -- a caller wanting a plain rendering (as every
+    call site did before this field existed) gets identical output; a caller
+    that wants the richer agent-marker/trail rendering opts in explicitly.
+    Neither field can hold anything about the *opponent* -- `visited` is
+    documented, by the one parameter name through which a caller could ever
+    populate it, as this side's own trail only.
+    """
 
     own_position: Position
     cells: tuple[CellView, ...]
     turn_state: TurnState
     turn_banner_text: str
     turn_banner_color: str
+    role_label: str = "•"
+    visited: frozenset[Position] = field(default_factory=frozenset)
 
 
 def build_live_view_model(
-    own_position: Position, belief: BeliefMap, board: Board, turn_state: TurnState
+    own_position: Position,
+    belief: BeliefMap,
+    board: Board,
+    turn_state: TurnState,
+    *,
+    role_label: str = "•",
+    visited: frozenset[Position] = frozenset(),
 ) -> LiveViewModel:
     """The single conversion point from raw belief data to a renderable model.
 
@@ -78,6 +95,11 @@ def build_live_view_model(
     color -- never a belief gradient -- since they structurally can never
     hold the opponent (Chapter 6's BeliefMap already excludes them from the
     tracked distribution; this is that same fact, made visible).
+
+    `role_label`/`visited` are this side's own, caller-supplied information
+    only (e.g. "C" for the cop, and the set of cells it has itself occupied
+    so far) -- there is still no parameter here through which an opponent's
+    true position could ever be represented.
     """
     grid_size = board.config.grid_size
     all_positions = [Position(r, c) for r in range(grid_size) for c in range(grid_size)]
@@ -97,4 +119,6 @@ def build_live_view_model(
         turn_state=turn_state,
         turn_banner_text=_TURN_BANNER_TEXT[turn_state],
         turn_banner_color=_TURN_BANNER_COLOR[turn_state],
+        role_label=role_label,
+        visited=visited,
     )
