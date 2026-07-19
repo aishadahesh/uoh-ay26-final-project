@@ -98,13 +98,47 @@ def test_locked_banner_is_gray_and_correctly_labeled(board):
     assert vm.turn_banner_color == "#616161"
 
 
+def test_role_label_defaults_to_a_generic_marker_when_not_supplied(board):
+    belief = _belief_peaked_at(board, Position(5, 5))
+    vm = build_live_view_model(Position(0, 0), belief, board, TurnState.YOUR_TURN)
+    assert vm.role_label == "•"
+
+
+def test_role_label_is_used_verbatim_when_supplied(board):
+    belief = _belief_peaked_at(board, Position(5, 5))
+    vm = build_live_view_model(Position(0, 0), belief, board, TurnState.YOUR_TURN, role_label="C")
+    assert vm.role_label == "C"
+
+
+def test_visited_defaults_to_empty(board):
+    belief = _belief_peaked_at(board, Position(5, 5))
+    vm = build_live_view_model(Position(0, 0), belief, board, TurnState.YOUR_TURN)
+    assert vm.visited == frozenset()
+
+
+def test_visited_is_passed_through_verbatim(board):
+    belief = _belief_peaked_at(board, Position(5, 5))
+    trail = frozenset({Position(0, 0), Position(1, 0)})
+    vm = build_live_view_model(Position(2, 0), belief, board, TurnState.YOUR_TURN, visited=trail)
+    assert vm.visited == trail
+
+
 def test_live_view_model_has_no_field_capable_of_holding_an_opponent_position():
     """Structural guarantee (Sec. 7.3.3 FORBIDDEN): there is no field in
     LiveViewModel, and no parameter in build_live_view_model, through which
     the opponent's true position could even be represented.
     """
     field_names = {f.name for f in dataclasses.fields(LiveViewModel)}
-    assert field_names == {"own_position", "cells", "turn_state", "turn_banner_text", "turn_banner_color"}
+    assert field_names == {
+        "own_position",
+        "cells",
+        "turn_state",
+        "turn_banner_text",
+        "turn_banner_color",
+        "role_label",
+        "visited",
+    }
     params = set(inspect.signature(build_live_view_model).parameters)
     assert "opponent_position" not in params
-    assert params == {"own_position", "belief", "board", "turn_state"}
+    assert "opponent" not in params
+    assert params == {"own_position", "belief", "board", "turn_state", "role_label", "visited"}
