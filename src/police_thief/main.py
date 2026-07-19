@@ -7,6 +7,11 @@ Commands:
   replay --log-file PATH   Launch the Replay Viewer against a saved match
                            log (Chapter 7) -- runs standalone, independent
                            of any live match code (docs/tasks.md T0437).
+  demo                     Open a standalone Live GUI window: the cop chases
+                           a fleeing thief using scent + belief-map inference
+                           (Chapter 4/6/7), rendered live. Single-process, no
+                           networking or crypto layer -- just a quick way to
+                           see the Live GUI in action.
 
 `serve` is the concrete realization of Chapter 2's "Total Separation of
 Working Environments" rule: one shared codebase (docs/PLAN.md ADR-011), but
@@ -22,8 +27,14 @@ import argparse
 import tkinter as tk
 from pathlib import Path
 
+from police_thief.domain.belief import BeliefMap
+from police_thief.domain.board import Board, BoardConfig, Position
+from police_thief.domain.heuristics import greedy_manhattan_move
+from police_thief.domain.live_view_model import TurnState, build_live_view_model
 from police_thief.domain.replay import ReplaySession, load_log
+from police_thief.domain.scent import ScentConfig, ScentField
 from police_thief.domain.simulation import run_local_match
+from police_thief.gui.live_gui import LiveGUI
 from police_thief.gui.replay_gui import ReplayGUI
 from police_thief.services.mcp_server import build_peer_server, run_peer_server
 from police_thief.shared.config import load_network_config
@@ -48,6 +59,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     replay = subparsers.add_parser("replay", help="Launch the Replay Viewer on a saved match log")
     replay.add_argument("--log-file", required=True, type=Path)
+
+    demo = subparsers.add_parser("demo", help="Open a standalone Live GUI demo (no networking)")
+    demo.add_argument("--turns", type=int, default=25)
+    demo.add_argument("--delay-ms", type=int, default=500)
 
     return parser.parse_args(argv)
 
@@ -76,8 +91,57 @@ def _replay(args: argparse.Namespace) -> None:
     root.mainloop()
 
 
+def _demo(args: argparse.Namespace) -> None:
+    """A standalone Live GUI demo: cop vs. fleeing thief, single-process.
+
+    Not a real match -- no networking, no commit-reveal, no strategy module
+    (Chapter 6's ManhattanHeuristicBrain isn't even used here). This is just
+    the Chapter 4 scent field + Chapter 6 belief map + Chapter 3 greedy
+    Manhattan search, wired to the real Chapter 7 LiveGUI so it's runnable
+    without first building a full live match loop (Chapter 8's still-open
+    gap -- see docs/PRD_reliability_layer.md).
+    """
+    board = Board(BoardConfig(grid_size=7, max_barriers=14))
+    cop_pos = Position(0, 0)
+    thief_pos = Position(3, 4)  # off-center: avoids the thief camping in a
+    # corner for several turns maximizing distance from the cop, which would
+    # otherwise build up one dominant scent blob and make the belief's guess
+    # look artificially "stuck" instead of visibly tracking the chase
+    scent = ScentField(grid_size=board.config.grid_size, config=ScentConfig())
+    belief = BeliefMap(board)
+    visited: set[Position] = {cop_pos}
+
+    root = tk.Tk()
+    root.title("Live GUI Demo - Cop's View")
+    gui = LiveGUI(root, grid_size=board.config.grid_size)
+
+    def step(turn: int) -> None:
+        nonlocal cop_pos, thief_pos
+        if turn >= args.turns or cop_pos == thief_pos:
+            return
+        thief_pos = board.apply_move(
+            thief_pos, greedy_manhattan_move(board, thief_pos, cop_pos, chase=False)
+        )
+        scent.decay()
+        scent.emit(thief_pos)
+        belief.update_from_scent(scent)
+        guess = belief.arg_max()
+        cop_pos = board.apply_move(cop_pos, greedy_manhattan_move(board, cop_pos, guess, chase=True))
+        visited.add(cop_pos)
+
+        turn_state = TurnState.YOUR_TURN if turn % 2 == 0 else TurnState.LOCKED
+        view_model = build_live_view_model(
+            cop_pos, belief, board, turn_state, role_label="C", visited=frozenset(visited)
+        )
+        gui.render(view_model)
+        root.after(args.delay_ms, step, turn + 1)
+
+    step(0)
+    root.mainloop()
+
+
 def main(argv: list[str] | None = None) -> None:
-    """Dispatch to `serve`, `simulate`, or `replay` based on the parsed subcommand."""
+    """Dispatch to `serve`, `simulate`, `replay`, or `demo` based on the parsed subcommand."""
     args = parse_args(argv)
     if args.command == "serve":
         _serve(args)
@@ -85,6 +149,8 @@ def main(argv: list[str] | None = None) -> None:
         _simulate(args)
     elif args.command == "replay":
         _replay(args)
+    elif args.command == "demo":
+        _demo(args)
 
 
 if __name__ == "__main__":
