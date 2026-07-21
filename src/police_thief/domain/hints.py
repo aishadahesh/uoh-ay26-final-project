@@ -21,7 +21,10 @@ from dataclasses import dataclass
 from police_thief.domain.board import Board, Move, MoveRejectedError, Position
 from police_thief.domain.scent import ScentField
 
-MAX_HINT_WORDS = 15  # docs/tasks.md App. F, Table 14: [hint word limit]
+MAX_HINT_WORDS = 15  # docs/tasks.md App. F, Table 14: [hint word limit] -- this is
+# the mandatory default (config/game.json's world.hint_max_words); enforce_word_limit/
+# TemplateHintProvider both accept an optional override so a team that agrees on a
+# different word limit via the shared config isn't stuck with this constant.
 
 _DIRECTION_PHRASES: dict[Move, str] = {
     Move.NORTH: "I moved north.",
@@ -37,10 +40,10 @@ class HintWordLimitError(ValueError):
     """Raised when a hint exceeds MAX_HINT_WORDS."""
 
 
-def enforce_word_limit(text: str) -> None:
+def enforce_word_limit(text: str, max_words: int = MAX_HINT_WORDS) -> None:
     word_count = len(text.split())
-    if word_count > MAX_HINT_WORDS:
-        raise HintWordLimitError(f"hint has {word_count} words, limit is {MAX_HINT_WORDS}: {text!r}")
+    if word_count > max_words:
+        raise HintWordLimitError(f"hint has {word_count} words, limit is {max_words}: {text!r}")
 
 
 @dataclass(frozen=True)
@@ -57,13 +60,20 @@ class TemplateHintProvider:
     in this project).
     """
 
+    def __init__(self, max_words: int = MAX_HINT_WORDS) -> None:
+        """`max_words` should come from config/game.json's `world.hint_max_words`
+        (App. F, Table 14) when a caller has it loaded; defaults to the
+        mandatory baseline otherwise.
+        """
+        self.max_words = max_words
+
     def generate(self, true_move: Move, *, tell_truth: bool, false_move: Move = Move.STAY) -> Hint:
         """`false_move` lets the caller choose what lie to tell; defaults
         to claiming STAY, a plausible generic deflection.
         """
         claimed_move = true_move if tell_truth else false_move
         text = _DIRECTION_PHRASES[claimed_move]
-        enforce_word_limit(text)
+        enforce_word_limit(text, self.max_words)
         return Hint(text=text, intent_truthful=tell_truth)
 
 

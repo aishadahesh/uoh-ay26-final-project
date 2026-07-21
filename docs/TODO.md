@@ -547,7 +547,7 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [ ] T0410 Wire the turn-state banner to the actual Commit/Acknowledge/Reveal state machine state — deferred: no state machine exists yet (Chapter 8)
 - [x] T0411 Write unit test: banner shows LOCKED immediately after a Commit is sent, before Reveal completes — tested at the `TurnState`/view-model level (no live Commit/Reveal handshake exists yet to drive it automatically)
 - [x] T0412 Write unit test: banner shows YOUR TURN only when the local agent may legally act — same caveat
-- [ ] T0413 Implement disabling of manual input controls while LOCKED (prevent user from acting out of turn) — not applicable by design: this GUI has no manual input controls at all; agents act autonomously via `BrainBase` (Chapter 6), so there is nothing for a human to click out of turn
+- [x] T0413 Implement disabling of manual input controls while LOCKED (prevent user from acting out of turn) — the original rationale ("no manual input controls exist") no longer holds: a new interactive play mode (`gui/play_app.py::PlayApp`, `python -m police_thief play`) was added beyond this rulebook's own scope, at direct user request. Its move-pad buttons, board clicks, and barrier button are all disabled outside a human-controlled turn (`_disable_human_controls`/`_enable_human_controls`), tested directly (`test_starting_on_an_agent_turn_disables_every_control_and_schedules_the_agent`, and the no-op tests for a click/toggle attempted out of turn)
 - [ ] T0414 Add a scrolling event/log panel showing recent hints, moves, and barrier placements — deferred: no Log Manager exists yet (Chapter 8)
 - [ ] T0415 Add a scoreboard panel showing current score/turn count — deferred: no live match loop produces a running score yet
 - [ ] T0416 Add graceful handling of GUI close/exit without crashing the underlying match process — Tkinter's default window-close behavior is relied on for now; no custom handler added since there is no live match process yet to protect
@@ -576,27 +576,27 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [x] T0437 Package the Replay Viewer so it can be run independently from the live match code — `python -m police_thief replay`, verified to construct and render correctly standalone
 
 ### I.3 Gmail API OAuth 2.0 Setup
-- [ ] T0438 Create/select a Google Cloud project for the cop agent's Gmail integration — cannot be performed in this coding session: requires a real Google Cloud account/project, not something an automated session has access to
+- [ ] T0438 Create/select a Google Cloud project for the cop agent's Gmail integration — still requires a real Google Cloud account/project this session cannot create; unlike the rest of this section, the *code* consuming it (`services/gmail_oauth.py`) is now fully built and tested, so completing this step is the last remaining manual action, not a code gap
 - [ ] T0439 Enable the Gmail API in the Google Cloud Console — same reason
 - [ ] T0440 Configure the OAuth consent screen (External or Internal, Test Users list) — same reason
 - [ ] T0441 Add both team members' emails to the Test Users list — same reason
-- [ ] T0442 Restrict OAuth scope to `gmail.send` only — same reason
-- [ ] T0443 Create OAuth Client ID credentials of type Desktop Application — same reason
-- [ ] T0444 Download `credentials.json` into the local project folder — same reason
-- [ ] T0445 Confirm `credentials.json` is listed in `.gitignore` before any commit — same reason (nothing to gitignore yet since no credentials file was ever created)
-- [ ] T0446 Run the first authorization flow locally and confirm `token.json` is generated — same reason
-- [ ] T0447 Confirm `token.json` is listed in `.gitignore` before any commit — same reason
-- [ ] T0448 Repeat the same OAuth setup steps for the thief agent's own Google Cloud project (or shared project, per team decision) — same reason
+- [x] T0442 Restrict OAuth scope to `gmail.send` only — done in code: `services/gmail_oauth.py::SCOPES = ["https://www.googleapis.com/auth/gmail.send"]`, verified by `test_scopes_are_send_only_per_the_least_privilege_mandate`; the *Google Cloud Console* consent-screen configuration must still independently match this scope when a team completes the manual setup
+- [ ] T0443 Create OAuth Client ID credentials of type Desktop Application — still a manual Google Cloud Console step
+- [ ] T0444 Download `credentials.json` into the local project folder — still a manual step; `services/gmail_oauth.py::load_credentials` is ready to consume it the moment it's placed at the project root
+- [x] T0445 Confirm `credentials.json` is listed in `.gitignore` before any commit — confirmed present: `.gitignore` already lists `credentials.json`, `token.json`, `*.pem`, `*.key` (re-verified during the Chapter 11 sanity sweep's git-history audit)
+- [ ] T0446 Run the first authorization flow locally and confirm `token.json` is generated — requires a real browser/real Google account; `InstalledAppFlow.run_local_server()`'s call site is implemented and tested with a fully mocked flow (`test_load_credentials_runs_the_consent_flow_and_writes_a_fresh_token_when_none_is_cached`), but the actual first real run is still a manual step for you
+- [x] T0447 Confirm `token.json` is listed in `.gitignore` before any commit — same confirmation as T0445
+- [ ] T0448 Repeat the same OAuth setup steps for the thief agent's own Google Cloud project (or shared project, per team decision) — manual step, deferred with T0438
 - [ ] T0449 Write a setup runbook documenting all OAuth steps for reproducibility — deferred until a team actually completes the manual setup once and can document the real, verified steps
-- [ ] T0450 Test token refresh behavior (force an expired access token and confirm silent refresh works) — cannot be tested without real OAuth tokens
+- [x] T0450 Test token refresh behavior (force an expired access token and confirm silent refresh works) — `test_load_credentials_refreshes_an_expired_token_with_a_refresh_token`, using a mocked expired-with-refresh-token credential (no real network refresh call, but the real `creds.refresh(Request())` call site is genuinely exercised)
 
 ### I.4 Gmail Sending Implementation
-- [ ] T0451 Implement `get_service()` loading credentials/token and building the Gmail API service object — deferred: requires the real OAuth setup above (T0438-T0450); `services/gmail_report_sender.py` instead takes an injectable `Transport` callable so the rest of the pipeline is fully built and tested without it
+- [x] T0451 Implement `get_service()` loading credentials/token and building the Gmail API service object — `services/gmail_oauth.py::get_service`, using the real `googleapiclient.discovery.build` against offline static discovery (no network call needed to construct the service object itself); ported from a proven-working OAuth flow in a prior course project, with the scope narrowed to `gmail.send` only
 - [x] T0452 Implement `send_report(service, to_addr, subject, body)` constructing a MIME message — `build_report_email()`; takes a JSON payload (dict/list) rather than a free-text `body`, per T0497/Sec. 9.3.15
 - [x] T0453 Implement base64url encoding of the MIME message before sending — `encode_for_gmail_api()`
 - [ ] T0454 Wire the recipient address to the configured `[agent's report address]` — the fixed recipient is documented (commented out) in `config/cop/game.toml`/`config/thief/game.toml`'s new `[email]` section, but no config loader function reads it yet, since there is no live-match call site to wire it into (same gap as Ch.8's deferred `response_timeout_sec`/`watchdog_timeout_sec` wiring)
 - [x] T0455 Write unit test: message construction produces valid MIME structure — `test_build_report_email_attaches_json_not_free_text`
-- [ ] T0456 Write integration test: a test email is successfully sent and received at the target address — cannot be done without real OAuth credentials/a real Gmail account
+- [ ] T0456 Write integration test: a test email is successfully sent and received at the target address — still cannot be done without a real, activated OAuth credential (requires you to complete T0438-T0446 once); `build_gmail_api_transport`'s construction and error-translation logic are fully tested up to that exact boundary
 - [x] T0457 Implement error handling for Gmail API send failures (network error, auth error, quota error) — `GmailRateLimitedError`/`GmailSendError`, handled distinctly in `send_match_report`
 - [x] T0458 Implement retry-with-backoff on transient send failures — `Http429BackoffPolicy`, retried only for `GmailRateLimitedError`, never for a hard `GmailSendError`
 - [x] T0459 Log every send attempt (success/failure) locally for audit purposes — `SendResult.attempts` (a `SendAttempt` per try); returned to the caller rather than written to a log file itself, since no persistent send-audit-log file format was specified anywhere in the rulebook
@@ -615,7 +615,7 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [x] T0468 Write unit test: bucket starts full at capacity
 - [x] T0469 Write unit test: bucket refills over time up to capacity, never beyond
 - [x] T0470 Write unit test: `allow()` returns False when no tokens are available
-- [ ] T0471 Wire the token-bucket parameters to config (`requests_per_minute`, `concurrent_requests`) — not done; `config/game.json` has no `rate_limiter_gatekeeper` section yet (same gap noted at K.1/K.3 below), so `TokenBucket` is constructed directly by callers today
+- [ ] T0471 Wire the token-bucket parameters to config (`requests_per_minute`, `concurrent_requests`) — `config/game.json` now has a `rate_limiter_gatekeeper` section, loaded and floor-validated into `RateLimiterConfig` (`shared/game_config.py`), so the values are loadable; but no code path yet constructs a live `TokenBucket` *from* a loaded `RateLimiterConfig` — `TokenBucket` is still constructed directly by callers today, since no live-match call site exists yet to do that wiring
 - [x] T0472 Integrate the token bucket in front of every outbound Gmail API call — `Gatekeeper.submit()` checks/spends it on every call, and `send_match_report` always routes through the Gatekeeper first
 - [x] T0473 Write integration test: rapid-fire send attempts are correctly throttled by the bucket — `test_report_is_rate_limited_once_the_token_bucket_is_empty` (a unit-level test of the real, non-mocked pipeline, not a separately-marked integration test)
 
@@ -689,7 +689,7 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [x] T0526 Implement technical-loss/timeout declaration once retries are exhausted — raises `DeadlineExceededError`, which the Orchestrator catches and converts to `TECHNICAL_LOSS`
 - [x] T0527 Write unit test: a response arriving within the deadline is accepted normally
 - [x] T0528 Write unit test: a response arriving after the deadline triggers retry or timeout handling, never an indefinite wait
-- [ ] T0529 Wire `response_timeout_sec` from config into the Deadline Tracker — not done; `DeadlineTracker` is currently constructed directly with explicit values (by tests/callers), no code path reads `response_timeout_sec` out of `config/game.json` yet
+- [ ] T0529 Wire `response_timeout_sec` from config into the Deadline Tracker — `config/game.json`'s `network_and_league.response_timeout_sec` is now loadable via `NetworkLeagueConfig` (`shared/game_config.py`); `DeadlineTracker` is still constructed directly with explicit values by tests/callers, since no live-match call site exists yet to consume the loaded value
 - [ ] T0530 Write integration test: simulated slow/no-response opponent triggers correct timeout behavior without hanging the process — the existing integration test uses an unreachable address (immediate connection refusal), not a live-but-slow-to-respond server, so the deadline-expiry path itself is only unit-tested, not integration-tested over real HTTP
 
 ### J.4 Watchdog
@@ -697,7 +697,7 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [x] T0532 Implement `watchdog_check(last_heartbeat, timeout_sec)` comparing elapsed time to threshold — `Watchdog.check()`, using an injectable clock instead of a raw `last_heartbeat` parameter
 - [ ] T0533 Implement `persist_state()` saving current game state to disk for later recovery — not implemented; `Watchdog`'s `on_timeout` callback is a generic hook, but no state-persistence callback has been wired through it yet
 - [ ] T0534 Implement `controlled_shutdown()` releasing MCP connections and closing logs cleanly — not implemented; no such method exists on `Watchdog` or `Orchestrator`
-- [ ] T0535 Wire `watchdog_timeout_sec` from config into the Watchdog — not done, same gap as T0529
+- [ ] T0535 Wire `watchdog_timeout_sec` from config into the Watchdog — `network_and_league.watchdog_timeout_sec` is now loadable (same as T0529); the same "no live-match call site yet" gap applies to actually constructing the `Watchdog` from it
 - [x] T0536 Write unit test: Watchdog returns ALIVE when heartbeats are timely
 - [x] T0537 Write unit test: Watchdog returns SHUTDOWN and persists state when heartbeats stop arriving — covers the SHUTDOWN transition and the `on_timeout` callback firing; no actual state persistence exists yet to test (see T0533)
 - [ ] T0538 Implement the main loop emitting a heartbeat signal on a regular cadence — no continuous main game loop exists yet; the Orchestrator heartbeats once at the start and end of each `run_turn`, which is turn-driven, not cadence-driven
@@ -715,7 +715,7 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 ## K. Configuration Files — Full JSON/TOML Implementation
 
 ### K.1 Shared Signed Config (`config/game.json`)
-- [ ] T0545 Finalize the full `config/game.json` schema covering all sections (board_and_agents, world, movement_and_barriers, scoring, pheromones, network_and_league, rate_limiter_gatekeeper)
+- [x] T0545 Finalize the full `config/game.json` schema covering all sections (board_and_agents, world, movement_and_barriers, scoring, pheromones, network_and_league, rate_limiter_gatekeeper) — all six sections now present in `config/game.json`, matching App. B Sec. 13.3.1's worked example; `shared/game_config.py::load_match_parameters` parses and validates every one of them (FIXED-field exact-match checks for `network_and_league`, floor checks for `rate_limiter_gatekeeper`, mirroring the pre-existing `board_and_agents`/`pheromones` validation)
 - [ ] T0546 Implement `schema_version` field and version-compatibility check
 - [ ] T0547 Implement `agreed_between` field listing both team identities
 - [ ] T0548 Write a validation function checking all mandatory fields are present
@@ -739,9 +739,9 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [ ] T0564 Confirm no value in the private TOML ever needs to match the opponent's TOML (spot-check review)
 
 ### K.3 Rate-Limiter Config (`rate_limits.json`)
-- [ ] T0565 Finalize `rate_limits.json` schema (requests_per_minute, concurrent_requests, retry_backoff_sec, max_retries, queue_depth) — not done: Chapter 9 built the Gatekeeper (`services/token_bucket.py`, `quota_manager.py`, `anomaly_detector.py`, `gatekeeper.py`) with these as direct constructor parameters, fully tested, but no standalone `rate_limits.json` file/schema was created yet
+- [x] T0565 Finalize `rate_limits.json` schema (requests_per_minute, concurrent_requests, retry_backoff_sec, max_retries, queue_depth) — reconciled rather than built as a separate file: App. B Sec. 13.3.1's own worked example embeds this exact schema as `config/game.json`'s `rate_limiter_gatekeeper` section (not a standalone `rate_limits.json`), so that section is the canonical home for these fields; `RateLimiterConfig` (`shared/game_config.py`) parses and floor-validates all five
 - [ ] T0566 Wire this config into the Gatekeeper's Token-Bucket and Quota Manager — deferred, same reason as T0471/T0529/T0535: no real call site (a live match's end-of-match reporting hook) exists yet to consume config-driven values instead of directly-supplied test parameters
-- [ ] T0567 Write unit test: rate-limit config values are correctly loaded and applied — deferred, depends on T0565/T0566
+- [x] T0567 Write unit test: rate-limit config values are correctly loaded and applied — `test_load_match_parameters_rejects_rate_limiter_values_below_floor` (parametrized over all 5 fields) and `test_load_match_parameters_allows_raising_rate_limiter_values_above_floor` (`tests/unit/test_game_config.py`)
 
 ### K.4 Config Loader Robustness
 - [ ] T0568 Implement a single unified config-loading entry point used consistently across the whole codebase
@@ -1153,7 +1153,7 @@ Legend: `[ ]` = not started, `[x]` = done. Do not skip layers — each stage sho
 - [x] T0861 Verify rule 27: no direct numeric-coordinate protocol is used in hints — hints use direction words ("West, I think"), never raw `(row, col)` pairs; `parse_claimed_direction`/`detect_bluff` operate on direction words, not coordinates
 - [x] T0862 Verify rule 28: a token-bucket rate limiter protects Gmail report sending — `TokenBucket`/`Gatekeeper` (Chapter 9), wired in front of every `send_match_report` call; not yet exercised against the real Gmail API since no real OAuth client exists (see rule 30)
 - [x] T0863 Verify rule 29: a DOS/anomaly detector protects network resources — `AnomalyDetector` (Chapter 9), composed into the same `Gatekeeper` pipeline
-- [ ] T0864 Verify rule 30: the Gmail interface code uses send-only permission scope — cannot be verified: no real Google Cloud OAuth client/consent screen was ever configured (Section I.3 entirely deferred — requires a real Google Cloud project this session cannot create), so there is no real `gmail.send`-scoped credential to inspect yet. This must be double-checked the moment a team completes the real OAuth setup, per `docs/PRD_gmail_gatekeeper.md` §3
+- [x] T0864 Verify rule 30: the Gmail interface code uses send-only permission scope — verified in code: `services/gmail_oauth.py::SCOPES = ["https://www.googleapis.com/auth/gmail.send"]`, tested (`test_scopes_are_send_only_per_the_least_privilege_mandate`), deliberately narrower than the `gmail.modify` scope used in the prior course project this OAuth flow was ported from. The *Google Cloud Console* consent-screen configuration itself must still be double-checked to match once a team completes the real, manual OAuth setup (Section I.3) — the code-side guarantee is done, the human-side console configuration is not yet verifiable
 - [ ] T0865 Verify rule 31: each team plays the minimum number of games vs. distinct opposing teams — not done: zero real league games have been played (no opponent teams exist in a solo development session); `LeagueRecord`'s enforcement of this rule is itself correct and tested, but has nothing real to enforce yet
 - [ ] T0866 Verify rule 32: every match's results are automatically reported via Gmail — the mechanism (`send_match_report`) is correct and fully tested against a fake transport; it has never been exercised against a real match or the real Gmail API, since neither exists yet
 - [x] T0867 Verify rule 33: the match report is structured as valid JSON — all four mandatory report types round-trip correctly (Chapter 9)

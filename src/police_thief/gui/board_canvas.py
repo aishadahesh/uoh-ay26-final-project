@@ -18,8 +18,10 @@ a submission template).
 from __future__ import annotations
 
 import tkinter as tk
+from collections.abc import Callable
 
 CELL_SIZE = 32
+_LEGAL_MOVE_OUTLINE = "#2e7d32"  # green -- a cell the human player may click
 
 
 class BoardCanvas(tk.Canvas):
@@ -31,18 +33,52 @@ class BoardCanvas(tk.Canvas):
         super().__init__(master, width=side, height=side, highlightthickness=1, highlightbackground="#888888")
         self._rects: dict[tuple[int, int], int] = {}
         self._marker_ids: list[int] = []
+        self._legal_cells: set[tuple[int, int]] = set()
+        self._click_callback: Callable[[int, int], None] | None = None
         for row in range(grid_size):
             for col in range(grid_size):
                 x0, y0 = col * CELL_SIZE, row * CELL_SIZE
                 self._rects[(row, col)] = self.create_rectangle(
                     x0, y0, x0 + CELL_SIZE, y0 + CELL_SIZE, fill="#ffffff", outline="#cccccc"
                 )
+        self.bind("<Button-1>", self._on_click)
 
     def set_cell_color(self, row: int, col: int, color: str) -> None:
         self.itemconfig(self._rects[(row, col)], fill=color)
 
     def set_cell_outline(self, row: int, col: int, color: str) -> None:
         self.itemconfig(self._rects[(row, col)], outline=color)
+
+    def cell_from_pixel(self, x: int, y: int) -> tuple[int, int] | None:
+        """Translate a canvas-relative pixel coordinate to a `(row, col)`
+        cell, or `None` if the click landed outside the grid entirely."""
+        row, col = y // CELL_SIZE, x // CELL_SIZE
+        if (row, col) in self._rects:
+            return (row, col)
+        return None
+
+    def set_click_handler(self, callback: Callable[[int, int], None] | None) -> None:
+        """`callback(row, col)` fires on every left-click inside the grid.
+        Pass `None` to disable clicking (e.g. when it isn't a human's turn).
+        """
+        self._click_callback = callback
+
+    def _on_click(self, event: tk.Event) -> None:
+        if self._click_callback is None:
+            return
+        cell = self.cell_from_pixel(event.x, event.y)
+        if cell is not None:
+            self._click_callback(*cell)
+
+    def highlight_legal_cells(self, cells: set[tuple[int, int]]) -> None:
+        """Outline every cell in `cells` distinctly, so a human player can
+        see exactly where they're allowed to click. Replaces any previous
+        highlight -- call with an empty set to clear it."""
+        for row, col in self._legal_cells - cells:
+            self.set_cell_outline(row, col, "#cccccc")
+        for row, col in cells:
+            self.set_cell_outline(row, col, _LEGAL_MOVE_OUTLINE)
+        self._legal_cells = set(cells)
 
     def clear_markers(self) -> None:
         """Remove every agent marker/trail dot drawn since the last clear."""

@@ -113,3 +113,29 @@ def test_barrier_is_permanent_for_the_rest_of_the_match(board):
     # No API exists to unblock it -- the only assertion possible is that it
     # stays blocked no matter how many times we check.
     assert board.is_blocked(Position(2, 3))
+
+
+def test_legal_moves_in_open_space_includes_all_five_moves(board):
+    legal = board.legal_moves(Position(3, 3))
+    assert set(legal) == {Move.NORTH, Move.SOUTH, Move.EAST, Move.WEST, Move.STAY}
+    assert legal[Move.NORTH] == Position(2, 3)
+    assert legal[Move.STAY] == Position(3, 3)
+
+
+def test_legal_moves_at_a_corner_excludes_off_board_directions(board):
+    legal = board.legal_moves(Position(0, 0))
+    assert set(legal) == {Move.SOUTH, Move.EAST, Move.STAY}
+
+
+def test_legal_moves_excludes_a_blocked_neighbor(board):
+    board.place_barrier(Position(3, 3), Position(2, 3))
+    legal = board.legal_moves(Position(3, 3))
+    assert Move.NORTH not in legal
+    assert set(legal) == {Move.SOUTH, Move.EAST, Move.WEST, Move.STAY}
+
+
+def test_legal_moves_always_includes_stay_even_when_fully_boxed_in(board):
+    for neighbor in board.neighbors(Position(3, 3)):
+        board.place_barrier(Position(3, 3), neighbor)
+    legal = board.legal_moves(Position(3, 3))
+    assert set(legal) == {Move.STAY}

@@ -204,6 +204,7 @@ Per the submission guideline's explicit requirement that *"for every specific al
 | `docs/PRD_reliability_layer.md` | Orchestrator, legal state machine, Deadline Tracker, Watchdog |
 | `docs/PRD_gui_replay.md` | Live GUI (local truth, heatmap, turn banner) and Replay Viewer (Stage 7) |
 | `docs/PRD_gmail_gatekeeper.md` | Automated reporting (Gatekeeper: Quota Manager, Token-Bucket, DOS detector), the four mandatory match JSON reports, and league scoring (Diversity Incentive, tie rule, game caps) (Stage 7, 9) |
+| `docs/PRD_interactive_play.md` | Interactive, mode-selectable play mode (Agent vs Agent / Human vs Agent / Human vs Human) — a deliberate addition beyond this rulebook's own scope, added at direct user request |
 
 > **Naming reconciliation note**: `docs/TODO.md` currently references per-stage design notes as `PRD/0X-<name>.md` (following the rulebook's own Ch.10 recommendation for 7 layered PRDs). This master PRD adopts the submission guideline's `docs/PRD_<mechanism>.md` naming convention instead, since it is the more rigorous, generically-applicable standard. When each per-mechanism document above is authored, it supersedes the corresponding `PRD/0X-*.md` reference in `docs/TODO.md`; those TODO line items should be updated to point at the correct `docs/PRD_<mechanism>.md` filename at that time.
 

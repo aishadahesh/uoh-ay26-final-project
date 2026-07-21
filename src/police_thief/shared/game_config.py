@@ -18,7 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from police_thief.domain.board import BoardConfig, Position
@@ -29,6 +29,15 @@ from police_thief.shared.config import ConfigError
 
 MIN_MAX_BARRIERS = 14
 MIN_GRID_SIZE = 7
+MIN_REQUESTS_PER_MINUTE = 30
+MIN_CONCURRENT_REQUESTS = 2
+MIN_RETRY_BACKOFF_SEC = 5
+MIN_MAX_RETRIES = 3
+MIN_QUEUE_DEPTH = 100
+FIXED_NUM_GAMES = 1
+FIXED_DIVERSITY_REWARD = 10
+FIXED_MIN_GAMES_TO_PASS = 2
+FIXED_MAX_GAMES_PER_TEAM = 10
 SUPPORTED_SCHEMA_VERSIONS = frozenset({"1.00"})
 _FIXED_SCENT_CONFIG = ScentConfig()  # docs/tasks.md Sec. 4.2: fixed, not a minimum floor
 
@@ -38,8 +47,47 @@ class GameConfigError(ConfigError):
 
 
 @dataclass(frozen=True)
+class WorldConfig:
+    """docs/tasks.md App. F, Table 14: the hint arena theme and word cap.
+
+    Defaults are the mandatory baseline, so board-physics-only callers (the
+    integration tests predating this section, `run_local_match`) can
+    construct a `MatchParameters` without caring about hint theming.
+    """
+
+    map_area: str = ""
+    hint_max_words: int = 15
+
+
+@dataclass(frozen=True)
+class NetworkLeagueConfig:
+    """docs/tasks.md App. F, Table 18. Defaults are the mandatory/example baseline."""
+
+    response_timeout_sec: float = 30.0
+    watchdog_timeout_sec: float = 60.0
+    num_games: int = FIXED_NUM_GAMES
+    diversity_reward: int = FIXED_DIVERSITY_REWARD
+    min_games_to_pass: int = FIXED_MIN_GAMES_TO_PASS
+    max_games_per_team: int = FIXED_MAX_GAMES_PER_TEAM
+    token_budget_per_series: int = 200_000
+
+
+@dataclass(frozen=True)
+class RateLimiterConfig:
+    """docs/tasks.md App. F, Table 19 -- the Gatekeeper's tunable minimums.
+    Defaults are exactly the mandatory floors.
+    """
+
+    requests_per_minute: int = MIN_REQUESTS_PER_MINUTE
+    concurrent_requests: int = MIN_CONCURRENT_REQUESTS
+    retry_backoff_sec: float = MIN_RETRY_BACKOFF_SEC
+    max_retries: int = MIN_MAX_RETRIES
+    queue_depth: int = MIN_QUEUE_DEPTH
+
+
+@dataclass(frozen=True)
 class MatchParameters:
-    """Everything Chapter 3's board/scoring logic needs for one match."""
+    """Everything Chapters 3/4/8/9's logic needs for one match."""
 
     board: BoardConfig
     scoring: ScoringTable
@@ -48,6 +96,9 @@ class MatchParameters:
     cop_start: Position
     max_moves: int
     survival_threshold: int
+    world: WorldConfig = field(default_factory=WorldConfig)
+    network_league: NetworkLeagueConfig = field(default_factory=NetworkLeagueConfig)
+    rate_limiter: RateLimiterConfig = field(default_factory=RateLimiterConfig)
 
 
 def _validate_fixed_scent_config(scent: ScentConfig, path: Path) -> None:
@@ -61,6 +112,35 @@ def _validate_fixed_scent_config(scent: ScentConfig, path: Path) -> None:
         raise GameConfigError(f"scent_decay_rate must be exactly {fixed.decay_rate} at {path}")
     if scent.field_size != fixed.field_size:
         raise GameConfigError(f"scent_field_size must be exactly {fixed.field_size} at {path}")
+
+
+def _validate_fixed_network_league_config(network_league: NetworkLeagueConfig, path: Path) -> None:
+    """App. F, Table 18: num_games/diversity_reward/min_games_to_pass/max_games_per_team
+    are all FIXED, not team-negotiable -- unlike response_timeout_sec/watchdog_timeout_sec/
+    token_budget_per_series, which are "by agreement" and therefore not checked here.
+    """
+    if network_league.num_games != FIXED_NUM_GAMES:
+        raise GameConfigError(f"num_games must be exactly {FIXED_NUM_GAMES} at {path}")
+    if network_league.diversity_reward != FIXED_DIVERSITY_REWARD:
+        raise GameConfigError(f"diversity_reward must be exactly {FIXED_DIVERSITY_REWARD} at {path}")
+    if network_league.min_games_to_pass != FIXED_MIN_GAMES_TO_PASS:
+        raise GameConfigError(f"min_games_to_pass must be exactly {FIXED_MIN_GAMES_TO_PASS} at {path}")
+    if network_league.max_games_per_team != FIXED_MAX_GAMES_PER_TEAM:
+        raise GameConfigError(f"max_games_per_team must be exactly {FIXED_MAX_GAMES_PER_TEAM} at {path}")
+
+
+def _validate_rate_limiter_floors(rate_limiter: RateLimiterConfig, path: Path) -> None:
+    """App. F, Table 19: every field here is a MINIMUM -- teams may raise, never lower."""
+    if rate_limiter.requests_per_minute < MIN_REQUESTS_PER_MINUTE:
+        raise GameConfigError(f"requests_per_minute below the mandatory floor {MIN_REQUESTS_PER_MINUTE} at {path}")
+    if rate_limiter.concurrent_requests < MIN_CONCURRENT_REQUESTS:
+        raise GameConfigError(f"concurrent_requests below the mandatory floor {MIN_CONCURRENT_REQUESTS} at {path}")
+    if rate_limiter.retry_backoff_sec < MIN_RETRY_BACKOFF_SEC:
+        raise GameConfigError(f"retry_backoff_sec below the mandatory floor {MIN_RETRY_BACKOFF_SEC} at {path}")
+    if rate_limiter.max_retries < MIN_MAX_RETRIES:
+        raise GameConfigError(f"max_retries below the mandatory floor {MIN_MAX_RETRIES} at {path}")
+    if rate_limiter.queue_depth < MIN_QUEUE_DEPTH:
+        raise GameConfigError(f"queue_depth below the mandatory floor {MIN_QUEUE_DEPTH} at {path}")
 
 
 def config_fingerprint(path: Path) -> str:
@@ -92,6 +172,9 @@ def load_match_parameters(path: Path) -> MatchParameters:
         movement_section = data["movement_and_barriers"]
         scoring_section = data["scoring"]
         pheromones_section = data["pheromones"]
+        world_section = data["world"]
+        network_league_section = data["network_and_league"]
+        rate_limiter_section = data["rate_limiter_gatekeeper"]
 
         grid_size = int(board_section["grid_size"])
         max_barriers = int(movement_section["max_barriers"])
@@ -120,6 +203,30 @@ def load_match_parameters(path: Path) -> MatchParameters:
             field_size=int(pheromones_section["scent_field_size"]),
         )
         _validate_fixed_scent_config(scent, path)
+
+        world = WorldConfig(
+            map_area=str(world_section["map_area"]),
+            hint_max_words=int(world_section["hint_max_words"]),
+        )
+        network_league = NetworkLeagueConfig(
+            response_timeout_sec=float(network_league_section["response_timeout_sec"]),
+            watchdog_timeout_sec=float(network_league_section["watchdog_timeout_sec"]),
+            num_games=int(network_league_section["num_games"]),
+            diversity_reward=int(network_league_section["diversity_reward"]),
+            min_games_to_pass=int(network_league_section["min_games_to_pass"]),
+            max_games_per_team=int(network_league_section["max_games_per_team"]),
+            token_budget_per_series=int(network_league_section["token_budget_per_series"]),
+        )
+        _validate_fixed_network_league_config(network_league, path)
+        rate_limiter = RateLimiterConfig(
+            requests_per_minute=int(rate_limiter_section["requests_per_minute"]),
+            concurrent_requests=int(rate_limiter_section["concurrent_requests"]),
+            retry_backoff_sec=float(rate_limiter_section["retry_backoff_sec"]),
+            max_retries=int(rate_limiter_section["max_retries"]),
+            queue_depth=int(rate_limiter_section["queue_depth"]),
+        )
+        _validate_rate_limiter_floors(rate_limiter, path)
+
         return MatchParameters(
             board=board,
             scoring=scoring,
@@ -128,6 +235,9 @@ def load_match_parameters(path: Path) -> MatchParameters:
             cop_start=Position(*board_section["cop_start"]),
             max_moves=int(movement_section["max_moves"]),
             survival_threshold=int(movement_section["survival_threshold"]),
+            world=world,
+            network_league=network_league,
+            rate_limiter=rate_limiter,
         )
     except GameConfigError:
         raise

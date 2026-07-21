@@ -12,6 +12,12 @@ Commands:
                            (Chapter 4/6/7), rendered live. Single-process, no
                            networking or crypto layer -- just a quick way to
                            see the Live GUI in action.
+  play                     Open the interactive, mode-selectable play window:
+                           choose Agent vs Agent, Human (either side) vs
+                           Agent, or Human vs Human, then play with a move
+                           pad / board clicks / barrier placement. A
+                           deliberate addition beyond the rulebook's own
+                           scope -- see domain/interactive_match.py.
 
 `serve` is the concrete realization of Chapter 2's "Total Separation of
 Working Environments" rule: one shared codebase (docs/PLAN.md ADR-011), but
@@ -63,6 +69,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     demo = subparsers.add_parser("demo", help="Open a standalone Live GUI demo (no networking)")
     demo.add_argument("--turns", type=int, default=25)
     demo.add_argument("--delay-ms", type=int, default=500)
+
+    subparsers.add_parser("play", help="Open the interactive, mode-selectable play window")
 
     return parser.parse_args(argv)
 
@@ -140,8 +148,36 @@ def _demo(args: argparse.Namespace) -> None:
     root.mainloop()
 
 
+def _play(args: argparse.Namespace) -> None:
+    """The interactive, mode-selectable play window (see main.py's own
+    module docstring and domain/interactive_match.py for scope/rationale).
+
+    `args` is unused today (no CLI flags yet) but kept for a consistent
+    handler signature alongside `_serve`/`_simulate`/`_replay`/`_demo`.
+    """
+    from police_thief.domain.interactive_match import InteractiveMatch
+    from police_thief.gui.mode_select import ModeSelectDialog
+    from police_thief.gui.play_app import PlayApp
+
+    root = tk.Tk()
+    root.withdraw()
+    mode = ModeSelectDialog(root).show()
+    if mode is None:
+        root.destroy()
+        return
+
+    board = Board(BoardConfig(grid_size=7, max_barriers=14))
+    match = InteractiveMatch(board, Position(0, 0), Position(3, 3), mode, max_moves=35)
+
+    root.deiconify()
+    root.title("Police-Thief - Interactive Play")
+    app = PlayApp(root, match)
+    app.start()
+    root.mainloop()
+
+
 def main(argv: list[str] | None = None) -> None:
-    """Dispatch to `serve`, `simulate`, `replay`, or `demo` based on the parsed subcommand."""
+    """Dispatch to `serve`, `simulate`, `replay`, `demo`, or `play` based on the parsed subcommand."""
     args = parse_args(argv)
     if args.command == "serve":
         _serve(args)
@@ -151,6 +187,8 @@ def main(argv: list[str] | None = None) -> None:
         _replay(args)
     elif args.command == "demo":
         _demo(args)
+    elif args.command == "play":
+        _play(args)
 
 
 if __name__ == "__main__":

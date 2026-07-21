@@ -57,3 +57,69 @@ def test_clear_markers_is_safe_to_call_when_nothing_was_drawn(root):
     canvas = BoardCanvas(root, grid_size=7)
     canvas.clear_markers()  # must not raise
     assert canvas._marker_ids == []
+
+
+class _FakeClickEvent:
+    def __init__(self, x: int, y: int) -> None:
+        self.x = x
+        self.y = y
+
+
+def test_cell_from_pixel_translates_correctly(root):
+    canvas = BoardCanvas(root, grid_size=7)
+    assert canvas.cell_from_pixel(0, 0) == (0, 0)
+    assert canvas.cell_from_pixel(35, 35) == (1, 1)  # CELL_SIZE=32, so 35//32 == 1
+
+
+def test_cell_from_pixel_returns_none_outside_the_grid(root):
+    canvas = BoardCanvas(root, grid_size=7)
+    assert canvas.cell_from_pixel(9999, 9999) is None
+
+
+def test_click_handler_fires_with_the_correct_cell(root):
+    canvas = BoardCanvas(root, grid_size=7)
+    clicks = []
+    canvas.set_click_handler(lambda r, c: clicks.append((r, c)))
+    canvas._on_click(_FakeClickEvent(35, 35))
+    assert clicks == [(1, 1)]
+
+
+def test_click_handler_does_not_fire_when_disabled(root):
+    canvas = BoardCanvas(root, grid_size=7)
+    clicks = []
+    canvas.set_click_handler(lambda r, c: clicks.append((r, c)))
+    canvas.set_click_handler(None)
+    canvas._on_click(_FakeClickEvent(0, 0))
+    assert clicks == []
+
+
+def test_click_handler_ignores_a_click_outside_the_grid(root):
+    canvas = BoardCanvas(root, grid_size=7)
+    clicks = []
+    canvas.set_click_handler(lambda r, c: clicks.append((r, c)))
+    canvas._on_click(_FakeClickEvent(9999, 9999))
+    assert clicks == []
+
+
+def test_highlight_legal_cells_outlines_exactly_the_given_cells(root):
+    canvas = BoardCanvas(root, grid_size=7)
+    canvas.highlight_legal_cells({(1, 1), (2, 2)})
+    assert canvas.itemcget(canvas._rects[(1, 1)], "outline") == "#2e7d32"
+    assert canvas.itemcget(canvas._rects[(2, 2)], "outline") == "#2e7d32"
+    assert canvas.itemcget(canvas._rects[(0, 0)], "outline") == "#cccccc"
+
+
+def test_highlight_legal_cells_clears_previous_highlights_not_in_the_new_set(root):
+    canvas = BoardCanvas(root, grid_size=7)
+    canvas.highlight_legal_cells({(1, 1)})
+    canvas.highlight_legal_cells({(2, 2)})
+    assert canvas.itemcget(canvas._rects[(1, 1)], "outline") == "#cccccc"
+    assert canvas.itemcget(canvas._rects[(2, 2)], "outline") == "#2e7d32"
+
+
+def test_highlight_legal_cells_with_an_empty_set_clears_everything(root):
+    canvas = BoardCanvas(root, grid_size=7)
+    canvas.highlight_legal_cells({(1, 1), (2, 2)})
+    canvas.highlight_legal_cells(set())
+    assert canvas.itemcget(canvas._rects[(1, 1)], "outline") == "#cccccc"
+    assert canvas.itemcget(canvas._rects[(2, 2)], "outline") == "#cccccc"

@@ -412,4 +412,70 @@ ruff check: All checks passed!
 
 **Tasks checked off:** `docs/TODO.md` T0431 (upgraded from "not built" to done, with an honest scope note on what it doesn't cover). `docs/PRD_gui_replay.md` amended in place rather than superseded, since this is an enhancement to an existing mechanism, not a new one.
 
+**Status:** committed (6 commits: BoardCanvas, LiveGUI upgrade, ReplayGUI upgrade, demo CLI command, tests, docs).
+
+---
+
+### Post-Chapter-11 Enhancement — Config Schema Gap Closed & Real Gmail OAuth (Informed by a Prior Working Repo)
+
+**What prompted this:** the user asked for two things at once: (1) go back through the chapters after 11 (the appendices) and verify what they require is actually done, and (2) pointed at a *different* prior repository — their own separate course project, `github.com/aishadahesh/uoh-ay26-mcp-ai-cops-and-robbers` (cloned to scratchpad for inspection, then deleted) — which had a real, working Gmail OAuth flow that successfully sent real emails from `aishadahesh11@gmail.com`, including a real bonus-series run against a partner team with logged, timestamped proof in its `RUNBOOK.md`.
+
+**Finding #1 — a genuine, previously-unnoticed gap in `config/game.json`:** cross-checking `docs/tasks.md` Appendix B Sec. 13.3.1's worked example (six sections: `board_and_agents`, `world`, `movement_and_barriers`, `scoring`, `pheromones`, `network_and_league`, `rate_limiter_gatekeeper`) against the actual shipped `config/game.json` found only four of six sections present — `world` and `network_and_league`/`rate_limiter_gatekeeper` were entirely missing. This had already been honestly flagged unchecked in `docs/TODO.md` T0545 since early in the project, but never actually closed. Fixed: both sections added to `config/game.json` with the book's own default values; `shared/game_config.py::MatchParameters` gained typed `WorldConfig`/`NetworkLeagueConfig`/`RateLimiterConfig` fields (all with sensible defaults so pre-existing simulation-only tests didn't need to change), each validated the same rigorous way as every pre-existing section: FIXED fields checked for exact match (mirroring Chapter 4's scent validation), MINIMUM fields checked against their floor (mirroring the existing `grid_size`/`max_barriers` checks). `world.hint_max_words` was then wired into `domain/hints.py::TemplateHintProvider` as an optional, backward-compatible constructor parameter, replacing what had been a silently-hardcoded constant.
+
+**Finding #2 — the real Gmail OAuth transport, now built.** The prior repo's `gmail_client.py` proved the `InstalledAppFlow` + cached-`token.json` pattern genuinely works for this Google account — not a hypothetical, a demonstrated fact. Ported the pattern into a new `services/gmail_oauth.py`, with one deliberate correction: the prior repo used the broader `gmail.modify` scope; this project's own Appendix A (Sec. 12.1.3/12.2.3) mandates `gmail.send` only under the Least-Privilege principle, so that's what was implemented instead — an improvement on the source pattern, not a straight copy. `build_gmail_api_transport()` returns a real `Transport` that plugs directly into the already-tested `send_match_report` pipeline (Chapter 9) with zero changes to that pipeline. Added `google-api-python-client`/`google-auth-oauthlib` as an optional `email` dependency group (`pyproject.toml`), matching the prior repo's own optional-extras pattern rather than forcing a heavy, security-sensitive dependency onto every future contributor.
+
+**A real bug found and fixed while building this, same discipline as every prior chapter:** the first version of `load_credentials` let a malformed `token.json` propagate a raw `json.JSONDecodeError` instead of the module's own `GmailOAuthError` — caught by actually writing a garbage token file and calling the function before trusting it (not by reasoning about it in the abstract), then fixed by catching `ValueError` around the parse and re-raising with a clear, actionable message.
+
+**Testing philosophy applied consistently with the rest of this project:** the genuinely untestable boundary is the same one already drawn since Chapter 5/6 — a real interactive OAuth consent (opens a real browser against a real Google account) and a real network call to the live API. Everything up to that boundary is tested for real, using the actual `google-api-python-client`/`google-auth-oauthlib` libraries against hand-built fake credentials/service objects, never a live call: fast-fail with no import needed when neither credentials nor token exist; a malformed cached token; an already-valid cached token short-circuiting past the consent flow entirely; an expired-but-refreshable token calling real `refresh()`; the (fully mocked) consent flow completing and persisting a fresh token; an invalid token with nothing to re-authorize against; and a real `HttpError(429)`/other-`HttpError` correctly translated into this project's own typed exceptions using the actual exception classes, not stand-ins. `googleapiclient.discovery.build`'s offline static discovery meant even `get_service()` itself could be exercised for real, without any network access.
+
+**Quality gate results:**
+```
+380 passed in ~16s
+TOTAL coverage: 99.58% (required: 85.0%)
+ruff check: All checks passed!
+```
+100% coverage on `game_config.py`/`hints.py`; 92% on the new `gmail_oauth.py` (the two remaining uncovered lines are the `ImportError` fallback branches for the optional dependency not being installed at all — genuinely unreachable in an environment where it is installed, the same category of low-value, environment-dependent gap already accepted elsewhere in this project).
+
+**What is still, honestly, a manual step for you:** creating the actual Google Cloud project, enabling the Gmail API, configuring the OAuth consent screen, and downloading a real `credentials.json` (Section I.3, T0438-T0441/T0443/T0444/T0446/T0448) — none of this can happen inside a coding session, no matter how complete the code side is. The code is now ready and waiting: place `credentials.json` at the project root and call `build_gmail_api_transport(...)` once, and the first call will open the real consent flow and cache `token.json` for every call after that.
+
+**Appendix verification pass (the other half of this request):** cross-checked `docs/tasks.md` Appendices A (Gmail/OAuth setup guide — confirmed `gmail.send` is the mandated scope, now matched in code), B (config file format — the gap above), C (GitHub submission/README requirements — already fully covered by Chapter 11's rule 41/42 findings, nothing new), F (mandatory parameters table — now fully represented in `config/game.json`), and 18 (consolidated JSON/config file inventory — every mandatory file either exists, is a tested builder, or is an honestly-flagged manual/external step) against the actual project state. No further gaps found beyond the two above.
+
+**Tasks checked off:** `docs/TODO.md` T0442, T0445, T0447, T0450-T0453, T0545, T0565, T0567, T0864 (10 tasks upgraded to done); T0438-T0441/T0443/T0444/T0446/T0448/T0454/T0456/T0471/T0529/T0535/T0566 refined with more precise, current rationale (no checkbox change — still correctly blocked on the same manual OAuth setup or missing live-match call site).
+
+**Status:** awaiting review before committing.
+
+---
+
+### Post-Chapter-11 Enhancement — Interactive Play Mode (Agent vs Agent / Human vs Agent / Human vs Human)
+
+**What prompted this:** feedback that the GUI still wasn't at the intended "premium" level — specifically, clicking Play in the existing `demo` command gave no way for a human to actually choose their next move, and there was no way to select agent-vs-agent, human-vs-agent, or human-vs-human play. The user pointed again at their own separate prior course project (`github.com/aishadahesh/uoh-ay26-mcp-ai-cops-and-robbers`), which has exactly this: a mode picker (`cop_agent_robber_user` / `cop_user_robber_agent` / `cop_user_robber_user` / two-AI) and a directional move pad + click-to-move + barrier placement.
+
+**What was built, re-implemented against this project's own architecture rather than copied:**
+- `domain/board.py::Board.legal_moves(pos)` — a new, pure method computing every legal `Move` (including `STAY`) from a position, reusing `apply_move`'s own validation.
+- `domain/interactive_match.py` — a new, framework-agnostic `InteractiveMatch` engine: `GameMode` (4 modes), `controller_for()` turn arbitration, `visible_view_for_current()`, `apply_move()`/`place_barrier()` with full capture/boxed-in/max-moves detection, and `agent_move()` reusing Chapter 6's real `greedy_manhattan_move` heuristic for any agent-controlled side — the same "pure logic, thin GUI" split established since Chapter 7's `LiveViewModel`.
+- `gui/board_canvas.py` extended with click-to-move: `cell_from_pixel`, `set_click_handler`, `highlight_legal_cells`.
+- `gui/mode_select.py` — a new modal dialog for picking the game mode before starting.
+- `gui/play_app.py` — the new interactive window: a move-pad (N/S/E/W/STAY buttons, enabled only on a legal human turn), click-to-move on highlighted board cells, a Place-Barrier toggle for a human-controlled cop, agent turns auto-advanced via `after()`, and end-of-match detection with a result dialog.
+- A new `play` subcommand in `main.py`, wired end-to-end and smoke-tested headlessly.
+
+**A genuine design fork, resolved by asking rather than guessing:** should Human-vs-Human hotseat mode preserve this project's core "Local Truth" guarantee (showing only the current mover's own belief-based view each turn, pass-and-play style), or show both true positions on one shared board like a normal hotseat board game (matching the reference project and typical local-multiplayer conventions, but technically breaking Local Truth for that one mode)? Asked directly rather than assumed either way — the user chose the shared-board convention. This is now the one explicit, documented exception: every mode involving at least one agent still gets the full, tested Local Truth guarantee (the human sees only their own position + a real belief heatmap, exactly what an agent would see); only `HUMAN_VS_HUMAN` shows both true positions, since both players share one physical screen by construction in that mode.
+
+**Deliberately not copied from the reference project:** diagonal movement (that project's move pad supports 8 directions; this project's Sec. 3.3.1 makes diagonal movement `[FORBIDDEN]`, a hard mandatory rule) — the new move pad has exactly the five moves this project's own `Move` enum already defines. Its neon-cyberpunk visual styling, animated background effects, and LLM-agent integration were also not ported — this addition reuses the real Chapter 6 heuristic brain for agent turns, not a new AI implementation.
+
+**A real Tkinter limitation found and worked around:** `canvas.event_generate("<Button-1>", ...)` does not reliably fire a bound click callback on a withdrawn/headless window in this environment — verified empirically before trusting it in a test. Tests instead call the bound handler directly with a minimal fake event object, the same "real object, direct call instead of full OS event simulation" pattern already used for `tk.Button.invoke()`.
+
+**A real race condition found and closed, not left untested:** a scheduled `after(500ms, self._agent_turn)` call isn't cancelled if the match ends some other way before it fires (e.g. a human captures the opponent immediately before the agent's scheduled turn would run). Added an explicit guard plus a dedicated test simulating exactly that stale-callback race, the same discipline as Chapter 8's mocked self-verification test and the Chapter 7 GUI upgrade's stale-tick test.
+
+**Quality gate results:**
+```
+434 passed in ~17s
+TOTAL coverage: 99%+ (required: 85.0%)
+ruff check: All checks passed!
+```
+100% coverage on every new file this mechanism touches (`interactive_match.py`, `mode_select.py`, `play_app.py`, and the extended `board.py`/`board_canvas.py`).
+
+**What was deliberately left out:** networked/multi-machine interactive play (single-process only, matching the existing `demo` command's scope); the reference project's live info panel (token counts, LLM response time, a menu bar) — tied to that project's own event-driven architecture this project doesn't share, and not requested.
+
+**Tasks checked off:** `docs/TODO.md` T0413 (manual input controls disabling while locked) — upgraded from "not applicable, no manual controls exist" to done, since this addition is exactly that capability, tested directly. `docs/PRD_interactive_play.md` — new per-mechanism PRD, listed in `docs/PRD.md` §7.
+
 **Status:** awaiting review before committing.

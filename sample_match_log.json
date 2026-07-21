@@ -1,0 +1,72 @@
+[
+  {
+    "state": {
+      "row": 0,
+      "col": 1
+    },
+    "move": "E",
+    "intent": true,
+    "nonce": "8a0c32c7b76ce12a5ef5018ad335bdfb679cc678a78b9fa9cd0e9d6911b25c87",
+    "h_commit": "3a47cb31fc45a327553604ccfcaf712d2dc8f0166d5156e3a87f35c5f2c8ecd4"
+  },
+  {
+    "state": {
+      "row": 0,
+      "col": 2
+    },
+    "move": "E",
+    "intent": true,
+    "nonce": "5a08acd15a244fe31edc7379496e40f0c08f6e86297c253faa27918a368c4493",
+    "h_commit": "70913e3b0662e337fdf115e2e3f15adb1cffdd19de45aeb99a239be6f2d904da"
+  },
+  {
+    "state": {
+      "row": 1,
+      "col": 2
+    },
+    "move": "S",
+    "intent": true,
+    "nonce": "3fa26ca7aef2453e6ea6faf7debed6f4370484dda232c80101e5b15749094930",
+    "h_commit": "ba3ca5a0e76301cb58e7ad4b26b1546deb1eaf741b48c9cdde66f310244a248b"
+  },
+  {
+    "state": {
+      "row": 2,
+      "col": 2
+    },
+    "move": "S",
+    "intent": true,
+    "nonce": "fb251d4255dbdbddbe1ce01b8473a2cf6b6b3f5a1f7fa72db9d7a0fac7841087",
+    "h_commit": "7518efc07ebde73311a100ec696cbfff4ee7f931ba2418dee8d99751224414f6"
+  },
+  {
+    "state": {
+      "row": 3,
+      "col": 2
+    },
+    "move": "S",
+    "intent": true,
+    "nonce": "5e6e01e06caae25fbb1d2f31d6a15897e86b6064b06e4884dcd308b9ee530faf",
+    "h_commit": "4f48b230a9d70cecbdaef7dd887abb3a7027f945163859c2b0152a8bf78f6499"
+  },
+  {
+    "state": {
+      "row": 3,
+      "col": 3
+    },
+    "move": "E",
+    "intent": true,
+    "nonce": "c88b1506de7104efc05ba84437ee44ca74d681c9a6e06f478e6ac16af54a3788",
+    "h_commit": "4cbcc800aa227730662318910fafc6af53d465ef09ee8e0b03e7eb79b8a47797"
+  },
+  {
+    "state": {
+      "row": 4,
+      "col": 3
+    },
+    "move": "S",
+    "intent": true,
+    "nonce": "69e38ba6b21e7131392b11aefb6023b368b9e0985a7c531fa97bf740eeda4e0a",
+    "h_commit": "308348ccddf3272ea6bd79993dd2aba435fb198a51d680813544725ec7d7d1e5"
+  }
+]

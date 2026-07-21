@@ -8,6 +8,12 @@ dependencies = [
     "fastmcp>=3.4.4",
 ]
 
+[project.optional-dependencies]
+email = [
+    "google-api-python-client>=2.130.0",
+    "google-auth-oauthlib>=1.2.0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

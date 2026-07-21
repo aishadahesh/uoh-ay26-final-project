@@ -108,6 +108,23 @@ class Board:
             raise MoveRejectedError(f"{move} from {pos} enters a blocked cell {target}")
         return target
 
+    def legal_moves(self, pos: Position) -> dict[Move, Position]:
+        """Every `Move` (including `STAY`) legal from `pos` right now, mapped
+        to its resulting position.
+
+        Used by the interactive play mode (a human player's move-pad/
+        click-to-move UI) to know which moves/cells to offer -- reuses
+        `apply_move`'s own validation rather than duplicating the
+        bounds/blocked logic a second time.
+        """
+        legal: dict[Move, Position] = {}
+        for move in Move:
+            try:
+                legal[move] = self.apply_move(pos, move)
+            except MoveRejectedError:
+                continue
+        return legal
+
     def place_barrier(self, cop_pos: Position, target: Position) -> None:
         """Place a permanent barrier at `target`; must be cop_pos itself or adjacent.
 

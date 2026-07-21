@@ -42,6 +42,28 @@ def test_template_provider_output_always_respects_the_word_limit():
         assert len(hint.text.split()) <= MAX_HINT_WORDS
 
 
+def test_template_provider_defaults_to_the_mandatory_word_limit():
+    assert TemplateHintProvider().max_words == MAX_HINT_WORDS
+
+
+def test_template_provider_respects_a_config_supplied_word_limit():
+    provider = TemplateHintProvider(max_words=3)  # "I moved north." is exactly 3 words
+    hint = provider.generate(true_move=Move.NORTH, tell_truth=True)
+    assert hint.text == "I moved north."
+
+
+def test_template_provider_rejects_a_config_supplied_word_limit_too_low_for_any_phrase():
+    provider = TemplateHintProvider(max_words=1)
+    with pytest.raises(HintWordLimitError):
+        provider.generate(true_move=Move.NORTH, tell_truth=True)
+
+
+def test_enforce_word_limit_respects_a_custom_max_words():
+    enforce_word_limit("one two three", max_words=3)
+    with pytest.raises(HintWordLimitError):
+        enforce_word_limit("one two three four", max_words=3)
+
+
 def test_template_phrases_never_contain_a_raw_coordinate_pattern():
     """Sec. 6.4.1/T0301: hints must never leak raw grid coordinates. True by
     construction (fixed phrase strings, no interpolated position values),
