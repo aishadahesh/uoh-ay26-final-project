@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import tkinter as tk
 from pathlib import Path
+from tkinter import messagebox
 
 from police_thief.domain.belief import BeliefMap
 from police_thief.domain.board import Board, BoardConfig, Position
@@ -155,9 +156,16 @@ def _play(args: argparse.Namespace) -> None:
     `args` is unused today (no CLI flags yet) but kept for a consistent
     handler signature alongside `_serve`/`_simulate`/`_replay`/`_demo`.
     """
-    from police_thief.domain.interactive_match import InteractiveMatch
+    from dotenv import load_dotenv
+
+    from police_thief.domain.interactive_match import (
+        InteractiveMatch,
+        PlayerType,
+        controller_for,
+    )
     from police_thief.gui.mode_select import ModeSelectDialog
     from police_thief.gui.play_app import PlayApp
+    from police_thief.services.gemini_agent import GeminiAgentAdvisor, GeminiConfigurationError
 
     root = tk.Tk()
     root.withdraw()
@@ -166,12 +174,30 @@ def _play(args: argparse.Namespace) -> None:
         root.destroy()
         return
 
+    load_dotenv()
+    has_agent = any(
+        controller_for(mode, role) is PlayerType.AGENT for role in AgentRole
+    )
+    gemini_advisor = None
+    if has_agent:
+        try:
+            gemini_advisor = GeminiAgentAdvisor()
+        except GeminiConfigurationError as exc:
+            root.deiconify()
+            messagebox.showerror(
+                "Gemini API key required",
+                f"{exc}\n\nCopy .env-example to .env and set GEMINI_API_KEY, then launch again.",
+                parent=root,
+            )
+            root.destroy()
+            return
+
     board = Board(BoardConfig(grid_size=7, max_barriers=14))
     match = InteractiveMatch(board, Position(0, 0), Position(3, 3), mode, max_moves=35)
 
     root.deiconify()
     root.title("Police-Thief - Interactive Play")
-    app = PlayApp(root, match)
+    app = PlayApp(root, match, gemini_advisor=gemini_advisor)
     app.start()
     root.mainloop()
 
