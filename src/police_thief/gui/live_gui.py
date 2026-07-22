@@ -18,6 +18,7 @@ import tkinter as tk
 
 from police_thief.domain.live_view_model import LiveViewModel
 from police_thief.gui.board_canvas import BoardCanvas
+from police_thief.gui.theme import COLORS, FONT, configure_window, install_styles
 
 _OWN_OUTLINE = "#000000"
 _OTHER_OUTLINE = "#cccccc"
@@ -31,11 +32,24 @@ class LiveGUI:
     def __init__(self, master: tk.Misc, grid_size: int) -> None:
         self.master = master
         self.grid_size = grid_size
-        self.banner = tk.Label(master, text="", font=("Segoe UI", 14, "bold"))
-        self.banner.pack(fill="x")
-        self.step_label = tk.Label(master, text="Step 0", font=("Segoe UI", 9))
-        self.step_label.pack()
-        self.canvas = BoardCanvas(master, grid_size)
+        configure_window(master, title="ShadowGrid | Live Local Truth", min_size=(430, 470))
+        install_styles(master)
+        shell = tk.Frame(master, bg=COLORS["bg"], padx=22, pady=20)
+        shell.pack(fill="both", expand=True)
+        tk.Label(shell, text="LIVE LOCAL TRUTH", bg=COLORS["bg"], fg=COLORS["text"],
+                 font=(FONT, 18, "bold")).pack(anchor="w")
+        tk.Label(shell, text="BELIEF HEATMAP  •  OPPONENT POSITION HIDDEN",
+                 bg=COLORS["bg"], fg=COLORS["muted"], font=(FONT, 9)).pack(anchor="w", pady=(0, 12))
+        telemetry = tk.Frame(shell, bg=COLORS["surface_alt"], padx=12, pady=9)
+        telemetry.pack(fill="x", pady=(0, 12))
+        self.banner = tk.Label(telemetry, text="", bg=COLORS["surface_alt"], font=(FONT, 14, "bold"))
+        self.banner.pack(side="left")
+        self.step_label = tk.Label(telemetry, text="Step 0", bg=COLORS["surface_alt"],
+                                   fg=COLORS["muted"], font=(FONT, 9, "bold"))
+        self.step_label.pack(side="right")
+        board_card = tk.Frame(shell, bg=COLORS["surface"], padx=16, pady=16)
+        board_card.pack(expand=True)
+        self.canvas = BoardCanvas(board_card, grid_size)
         self.canvas.pack()
         self._rects = self.canvas._rects  # kept for backward-compatible test/introspection access
         self._step = 0
