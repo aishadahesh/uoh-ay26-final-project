@@ -47,6 +47,25 @@ uv run python -m police_thief demo
 uv run python -m police_thief simulate
 ```
 
+**Play locally with Gemini-powered agents:**
+
+Copy `.env-example` to `.env`, set your Google AI Studio key, and launch the
+interactive command center:
+
+```env
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+```bash
+uv run python -m police_thief play
+```
+
+Gemini selects among the moves already approved by the deterministic rules
+engine and its tactical rationale appears in the sidebar. Invalid model output
+or an API failure safely falls back to the Manhattan heuristic. Human vs Human
+remains fully offline.
+
 **Run two real, separate peer processes talking over FastMCP** (two terminals):
 
 ```bash
