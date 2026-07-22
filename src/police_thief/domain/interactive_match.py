@@ -28,6 +28,7 @@ truth even between two humans on one machine.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -143,13 +144,20 @@ class InteractiveMatch:
             )
         return VisibleView(own_position=own_pos, own_role=role, belief=self.belief[role], opponent_position=None)
 
-    def agent_move(self) -> Move:
+    def agent_move(self, advisor: Callable[[AgentRole, Position, Position, tuple[Move, ...], Move], Move] | None = None) -> Move:
         """The move the built-in Manhattan heuristic (Chapter 6) would make
         for the current, agent-controlled role: the cop chases its belief's
         best guess, the thief flees from it."""
         role = self.current_role
         guess = self.belief[role].arg_max()
-        return greedy_manhattan_move(self.board, self.positions[role], guess, chase=(role is AgentRole.COP))
+        fallback = greedy_manhattan_move(
+            self.board, self.positions[role], guess, chase=(role is AgentRole.COP)
+        )
+        if advisor is None:
+            return fallback
+        legal_moves = tuple(self.legal_moves())
+        proposed = advisor(role, self.positions[role], guess, legal_moves, fallback)
+        return proposed if proposed in legal_moves else fallback
 
     def _record_move_and_advance(self) -> None:
         """Shared bookkeeping after any legal action (move or barrier):

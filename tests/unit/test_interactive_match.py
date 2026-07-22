@@ -170,6 +170,19 @@ def test_agent_move_chases_toward_the_belief_peak_for_the_cop():
     assert move in {Move.EAST, Move.STAY}  # moving toward (0,6) from (0,0) means East (or STAY if not improving)
 
 
+def test_agent_move_accepts_an_advisors_legal_choice():
+    match = _match(GameMode.AGENT_VS_AGENT, cop=Position(0, 0))
+    selected = match.agent_move(lambda _role, _own, _belief, _legal, _fallback: Move.SOUTH)
+    assert selected is Move.SOUTH
+
+
+def test_agent_move_rejects_an_advisors_illegal_choice_and_uses_fallback():
+    match = _match(GameMode.AGENT_VS_AGENT, cop=Position(0, 0))
+    baseline = match.agent_move()
+    selected = match.agent_move(lambda _role, _own, _belief, _legal, _fallback: Move.NORTH)
+    assert selected is baseline
+
+
 def test_a_thief_boxed_in_by_barriers_is_treated_as_captured_on_the_next_action():
     """Sec. 3.3.5: a thief with no legal move left counts as captured, even
     if the action that triggered the check wasn't aimed at it directly."""
