@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import tkinter as tk
+from collections.abc import Callable
+from contextlib import suppress
 from tkinter import messagebox, ttk
 
 from police_thief.domain.board import Move, MoveRejectedError, Position
@@ -35,29 +37,43 @@ class PlayApp:
         master: tk.Misc,
         match: InteractiveMatch,
         gemini_advisor: GeminiAgentAdvisor | None = None,
+        on_new_game: Callable[[], bool] | None = None,
     ) -> None:
         self.master = master
         self.match = match
         self.gemini_advisor = gemini_advisor
+        self.on_new_game = on_new_game
         self._barrier_mode = False
+        self._agent_after_id: str | None = None
+        self._paused = False
+        self._closed = False
         configure_window(master, title="ShadowGrid | Tactical Command", min_size=(900, 650))
         install_styles(master)
 
-        shell = ttk.Frame(master, style="App.TFrame", padding=22)
-        shell.pack(fill="both", expand=True)
-        header = ttk.Frame(shell, style="App.TFrame")
+        self.shell = ttk.Frame(master, style="App.TFrame", padding=22)
+        self.shell.pack(fill="both", expand=True)
+        header = ttk.Frame(self.shell, style="App.TFrame")
         header.pack(fill="x", pady=(0, 16))
         title_box = ttk.Frame(header, style="App.TFrame")
         title_box.pack(side="left")
         ttk.Label(title_box, text="SHADOWGRID", style="Title.TLabel").pack(anchor="w")
         ttk.Label(title_box, text=MODE_LABELS[match.mode].upper(), style="Subtitle.TLabel").pack(anchor="w")
+        header_actions = ttk.Frame(header, style="App.TFrame")
+        header_actions.pack(side="right")
+        self.new_game_button = tk.Button(
+            header_actions, text="↻  NEW GAME", command=self._request_new_game,
+            bg=COLORS["surface"], fg=COLORS["text"], activebackground=COLORS["border"],
+            activeforeground=COLORS["text"], relief="flat", bd=0, padx=14, pady=10,
+            font=(FONT, 9, "bold"), cursor="hand2",
+        )
+        self.new_game_button.pack(side="left", padx=(0, 10))
         self.status_label = tk.Label(
-            header, font=(FONT, 12, "bold"), bg=COLORS["surface_alt"],
+            header_actions, font=(FONT, 12, "bold"), bg=COLORS["surface_alt"],
             fg=COLORS["accent"], padx=18, pady=10,
         )
         self.status_label.pack(side="right")
 
-        content = ttk.Frame(shell, style="App.TFrame")
+        content = ttk.Frame(self.shell, style="App.TFrame")
         content.pack(fill="both", expand=True)
         content.columnconfigure(0, weight=1)
         content.rowconfigure(0, weight=1)
@@ -131,6 +147,8 @@ class PlayApp:
         self._advance()
 
     def _advance(self) -> None:
+        if self._closed or self._paused:
+            return
         if self.match.is_finished:
             self._show_result()
             return
@@ -138,16 +156,42 @@ class PlayApp:
             self._enable_human_controls()
         else:
             self._disable_human_controls()
-            self.master.after(AGENT_MOVE_DELAY_MS, self._agent_turn)
+            self._agent_after_id = self.master.after(AGENT_MOVE_DELAY_MS, self._agent_turn)
         self._render()
 
     def _agent_turn(self) -> None:
-        if self.match.is_finished:
+        self._agent_after_id = None
+        if self._closed or self._paused or self.match.is_finished:
             return
         self.status_label.config(text=f"◌  {self.match.current_role.value.upper()} / GEMINI THINKING")
         self.master.update_idletasks()
         self.match.apply_move(self.match.agent_move(self._gemini_move if self.gemini_advisor else None))
         self._advance()
+
+    def _request_new_game(self) -> None:
+        """Pause this match while the owner reopens the mission selector."""
+        if self.on_new_game is None or self._closed:
+            return
+        self._paused = True
+        if self._agent_after_id is not None:
+            with suppress(tk.TclError):
+                self.master.after_cancel(self._agent_after_id)
+            self._agent_after_id = None
+        changed = self.on_new_game()
+        if not changed and not self._closed:
+            self._paused = False
+            self._advance()
+
+    def close(self) -> None:
+        """Stop pending callbacks, remove bindings, and destroy this session UI."""
+        self._closed = True
+        if self._agent_after_id is not None:
+            with suppress(tk.TclError):
+                self.master.after_cancel(self._agent_after_id)
+            self._agent_after_id = None
+        for sequence in (*_KEY_MOVES, "b"):
+            self.master.unbind(sequence)
+        self.shell.destroy()
 
     def _gemini_move(
         self,

@@ -169,36 +169,46 @@ def _play(args: argparse.Namespace) -> None:
 
     root = tk.Tk()
     root.withdraw()
-    mode = ModeSelectDialog(root).show()
-    if mode is None:
+    load_dotenv()
+    current_app: PlayApp | None = None
+
+    def select_and_start() -> bool:
+        nonlocal current_app
+        mode = ModeSelectDialog(root).show()
+        if mode is None:
+            return False
+
+        has_agent = any(
+            controller_for(mode, role) is PlayerType.AGENT for role in AgentRole
+        )
+        gemini_advisor = None
+        if has_agent:
+            try:
+                gemini_advisor = GeminiAgentAdvisor()
+            except GeminiConfigurationError as exc:
+                root.deiconify()
+                messagebox.showerror(
+                    "Gemini API key required",
+                    f"{exc}\n\nCopy .env-example to .env and set GEMINI_API_KEY, then launch again.",
+                    parent=root,
+                )
+                return False
+
+        if current_app is not None:
+            current_app.close()
+        board = Board(BoardConfig(grid_size=7, max_barriers=14))
+        match = InteractiveMatch(board, Position(0, 0), Position(3, 3), mode, max_moves=35)
+        root.deiconify()
+        root.title("Police-Thief - Interactive Play")
+        current_app = PlayApp(
+            root, match, gemini_advisor=gemini_advisor, on_new_game=select_and_start
+        )
+        current_app.start()
+        return True
+
+    if not select_and_start():
         root.destroy()
         return
-
-    load_dotenv()
-    has_agent = any(
-        controller_for(mode, role) is PlayerType.AGENT for role in AgentRole
-    )
-    gemini_advisor = None
-    if has_agent:
-        try:
-            gemini_advisor = GeminiAgentAdvisor()
-        except GeminiConfigurationError as exc:
-            root.deiconify()
-            messagebox.showerror(
-                "Gemini API key required",
-                f"{exc}\n\nCopy .env-example to .env and set GEMINI_API_KEY, then launch again.",
-                parent=root,
-            )
-            root.destroy()
-            return
-
-    board = Board(BoardConfig(grid_size=7, max_barriers=14))
-    match = InteractiveMatch(board, Position(0, 0), Position(3, 3), mode, max_moves=35)
-
-    root.deiconify()
-    root.title("Police-Thief - Interactive Play")
-    app = PlayApp(root, match, gemini_advisor=gemini_advisor)
-    app.start()
     root.mainloop()
 
 
