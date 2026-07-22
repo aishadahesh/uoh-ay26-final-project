@@ -33,3 +33,17 @@ def test_show_blocks_until_start_is_clicked_then_returns_the_chosen_mode(root):
     root.after(10, dialog.start_button.invoke)
     result = dialog.show()
     assert result is GameMode.HUMAN_VS_HUMAN
+
+
+def test_dialog_is_visible_when_cli_parent_root_is_withdrawn(root):
+    """Regression: a transient child of a withdrawn root is hidden on Windows."""
+    hidden_parent = root.__class__(root)
+    hidden_parent.withdraw()
+    dialog = ModeSelectDialog(hidden_parent)
+    dialog.window.update()
+    try:
+        assert dialog.window.state() == "normal"
+        assert dialog.window.winfo_viewable() == 1
+    finally:
+        dialog.window.destroy()
+        hidden_parent.destroy()
