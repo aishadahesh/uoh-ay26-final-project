@@ -25,6 +25,7 @@ from typing import Any
 
 from police_thief.domain.replay import VERIFIED_OK, ReplaySession
 from police_thief.gui.board_canvas import BoardCanvas
+from police_thief.gui.theme import COLORS, FONT, MONO_FONT, configure_window, install_styles
 
 _STATUS_COLOR = {VERIFIED_OK: "#2e7d32", "TAMPERED": "#c62828"}  # green / red
 _STATUS_TEXT = {VERIFIED_OK: "Verified OK", "TAMPERED": "TAMPERED"}
@@ -51,16 +52,25 @@ class ReplayGUI:
         self.session = session
         self._playing = False
 
-        self.step_label = tk.Label(master, font=("Segoe UI", 11))
-        self.step_label.pack()
-        self.status_label = tk.Label(master, font=("Segoe UI", 16, "bold"))
-        self.status_label.pack()
+        configure_window(master, title="ShadowGrid | Integrity Replay", min_size=(760, 560))
+        install_styles(master)
+        master.configure(bg=COLORS["bg"])
+        tk.Label(master, text="INTEGRITY REPLAY", bg=COLORS["bg"], fg=COLORS["text"],
+                 font=(FONT, 19, "bold")).pack(anchor="w", padx=24, pady=(20, 0))
+        tk.Label(master, text="CRYPTOGRAPHIC WITNESS  •  COMMIT / REVEAL AUDIT",
+                 bg=COLORS["bg"], fg=COLORS["muted"], font=(FONT, 9)).pack(anchor="w", padx=24)
+
+        self.step_label = tk.Label(master, bg=COLORS["bg"], fg=COLORS["muted"], font=(FONT, 11, "bold"))
+        self.step_label.pack(pady=(14, 0))
+        self.status_label = tk.Label(master, bg=COLORS["bg"], font=(FONT, 16, "bold"))
+        self.status_label.pack(pady=(2, 8))
 
         self.canvas = BoardCanvas(master, grid_size)
         self.canvas.pack()
 
-        self.detail_label = tk.Label(master, font=("Consolas", 10), justify="left")
-        self.detail_label.pack()
+        self.detail_label = tk.Label(master, bg=COLORS["surface"], fg=COLORS["text"],
+                                     font=(MONO_FONT, 9), justify="left", padx=16, pady=10)
+        self.detail_label.pack(fill="x", padx=24, pady=10)
 
         buttons = tk.Frame(master)
         buttons.pack()
@@ -79,7 +89,7 @@ class ReplayGUI:
         self.jump_button = tk.Button(jump_bar, text="Go", command=self._on_jump)
         self.jump_button.pack(side="left", padx=6)
 
-        self.summary_label = tk.Label(master, font=("Segoe UI", 9))
+        self.summary_label = tk.Label(master, bg=COLORS["bg"], fg=COLORS["muted"], font=(FONT, 9))
         self.summary_label.pack()
         self.summary_label.config(
             text=f"{session.verified_count} verified / {session.tampered_count} tampered "
